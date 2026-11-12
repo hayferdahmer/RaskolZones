@@ -8,6 +8,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
+import ru.raskol.zones.territory.spatial.SpatialQueryService;
 
 public final class WorldLifecycleListener implements Listener {
 

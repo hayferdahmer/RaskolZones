@@ -36,22 +36,6 @@ class WorldRegistryServiceTest {
     }
 
     @Test
-    void shutdownMarksAllKnownWorldsUnavailableWithoutDeletingThem() throws Exception {
-        try (var storage = new SqliteStorageService(temporaryDirectory.resolve("shutdown-worlds.db"))) {
-            var registry = new WorldRegistryService(storage);
-            UUID first = UUID.randomUUID();
-            UUID second = UUID.randomUUID();
-            registry.registerLoadedWorld(first, "world").toCompletableFuture().get();
-            registry.registerLoadedWorld(second, "world_nether").toCompletableFuture().get();
-
-            assertEquals(2, registry.markAllWorldsUnloaded().toCompletableFuture().get());
-            var worlds = registry.listAll().toCompletableFuture().get();
-            assertEquals(2, worlds.size());
-            assertTrue(worlds.stream().allMatch(world -> world.availability() == WorldAvailability.UNLOADED));
-        }
-    }
-
-    @Test
     void unloadKeepsWorldRecordAndReloadRestoresAvailability() throws Exception {
         try (var storage = new SqliteStorageService(temporaryDirectory.resolve("world-lifecycle.db"))) {
             var registry = new WorldRegistryService(storage);

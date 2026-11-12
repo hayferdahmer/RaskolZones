@@ -91,7 +91,7 @@ jobs:
               "docs/ROADMAP.md",
               "Paper 26.2",
               "Java 25",
-              "Проектирование",
+              "Статус: проектирование",
           ]
           missing = [item for item in required_readme if item not in readme]
           if missing:

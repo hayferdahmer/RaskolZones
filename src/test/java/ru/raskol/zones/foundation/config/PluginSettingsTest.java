@@ -2,6 +2,7 @@ package ru.raskol.zones.foundation.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -29,13 +30,25 @@ class PluginSettingsTest {
     }
 
     @Test
-    void fallsBackForValuesWithUnexpectedTypes() {
-        var settings = PluginSettings.from(Map.of(
-                "language", 42,
-                "diagnostics.enabled", "yes"
-        ));
-
+    void normalizesLanguageCode() {
+        var settings = new PluginSettings(" RU ", false);
         assertEquals("ru", settings.language());
-        assertFalse(settings.diagnosticsEnabled());
+    }
+
+    @Test
+    void rejectsInvalidLanguageCode() {
+        assertThrows(IllegalArgumentException.class, () -> new PluginSettings("russian language", false));
+    }
+
+    @Test
+    void rejectsUnexpectedConfigurationTypes() {
+        assertThrows(IllegalArgumentException.class, () -> PluginSettings.from(Map.of(
+                "language", 42,
+                "diagnostics.enabled", true
+        )));
+        assertThrows(IllegalArgumentException.class, () -> PluginSettings.from(Map.of(
+                "language", "ru",
+                "diagnostics.enabled", "yes"
+        )));
     }
 }

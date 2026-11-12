@@ -57,18 +57,6 @@ public final class WorldRegistryService {
         });
     }
 
-    public CompletionStage<Integer> markAllWorldsUnloaded() {
-        return storage.transaction(connection -> {
-            try (var statement = connection.prepareStatement("""
-                    UPDATE world_registry
-                    SET availability = 'UNLOADED'
-                    WHERE availability <> 'UNLOADED'
-                    """)) {
-                return statement.executeUpdate();
-            }
-        });
-    }
-
     public CompletionStage<Optional<WorldRecord>> find(UUID worldId) {
         Objects.requireNonNull(worldId, "worldId");
         return storage.transaction(connection -> {

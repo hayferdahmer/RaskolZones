@@ -16,11 +16,23 @@ public final class ConfigurationService implements SettingsProvider {
     @Override
     public PluginSettings load() {
         plugin.saveDefaultConfig();
+        return readCurrentConfiguration();
+    }
+
+    @Override
+    public PluginSettings reload() {
+        plugin.reloadConfig();
+        return readCurrentConfiguration();
+    }
+
+    private PluginSettings readCurrentConfiguration() {
         FileConfiguration config = plugin.getConfig();
+        Object language = config.get("language", "ru");
+        Object diagnostics = config.get("diagnostics.enabled", false);
 
         return PluginSettings.from(Map.of(
-                "language", config.getString("language", "ru"),
-                "diagnostics.enabled", config.getBoolean("diagnostics.enabled", false)
+                "language", language,
+                "diagnostics.enabled", diagnostics
         ));
     }
 }

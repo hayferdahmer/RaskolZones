@@ -28,7 +28,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-          cache: maven
 
       - name: Validate project documentation
         shell: bash
@@ -39,23 +38,61 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          required = [
+          from pathlib import Path
+
+          decisions = Path("docs/ARCHITECTURE_DECISIONS.md").read_text(encoding="utf-8")
+          technical = Path("docs/TECHNICAL_SPECIFICATION.md").read_text(encoding="utf-8")
+          readme = Path("README.md").read_text(encoding="utf-8")
+
+          required_decisions = [
               "## A-00. Базовая архитектура",
               "## A-18. Публичный API и интеграционные контракты",
-              "### A18.8. Дополнительные пожелания",
               "## A-19. Безопасность административных операций",
+              "## A-32. Критерии готовности, приёмки и первого стабильного релиза",
+              "## A-33. Модульные границы, владение данными и трассируемость требований",
+              "## A-34. Согласованность данных, конкурентный доступ и восстановление операций",
+              "## A-35. Модель угроз и границы доверия",
+              "## A-36. Документация и нормативные источники",
           ]
-          document = Path("docs/ARCHITECTURE_DECISIONS.md").read_text(encoding="utf-8")
-          missing = [heading for heading in required if heading not in document]
+          missing = [heading for heading in required_decisions if heading not in decisions]
           if missing:
-              raise SystemExit("Missing required specification sections: " + ", ".join(missing))
+              raise SystemExit("Missing canonical decision sections: " + ", ".join(missing))
 
-          checked = [Path("README.md"), Path("docs/ARCHITECTURE_DECISIONS.md")]
+          required_technical = [
+              "канонический журнал архитектурных решений содержит A-00–A-36",
+              "## 18. Нормативность и согласованность документации",
+              "## 19. Краткая история решений",
+              "A-35 — формальная модель угроз",
+              "A-36 — канонический журнал решений",
+          ]
+          missing = [item for item in required_technical if item not in technical]
+          if missing:
+              raise SystemExit("Technical specification is out of sync: " + ", ".join(missing))
+
+          required_readme = [
+              "docs/ARCHITECTURE_DECISIONS.md",
+              "docs/TECHNICAL_SPECIFICATION.md",
+              "docs/ROADMAP.md",
+              "Paper 26.2",
+              "Java 25",
+              "Проектирование",
+          ]
+          missing = [item for item in required_readme if item not in readme]
+          if missing:
+              raise SystemExit("README is incomplete: " + ", ".join(missing))
+
+          checked = [
+              Path("README.md"),
+              Path("docs/ARCHITECTURE_DECISIONS.md"),
+              Path("docs/TECHNICAL_SPECIFICATION.md"),
+              Path("docs/ROADMAP.md"),
+              Path("docs/CI_AND_AUTOMATION.md"),
+          ]
           for path in checked:
               for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
                   if line.rstrip() != line:
                       raise SystemExit(f"{path}:{number}: trailing whitespace")
-          print("Documentation structure and whitespace checks passed.")
+          print("Canonical decisions, technical specification, README and whitespace checks passed.")
           PY
 
       - name: Build with Maven

@@ -226,6 +226,9 @@ jobs:
                   "ru/raskol/zones/territory/geometry/CuboidGeometry.class",
                   "ru/raskol/zones/territory/geometry/PolygonGeometry.class",
                   "ru/raskol/zones/territory/type/TerritoryTypeRegistry.class",
+                  "ru/raskol/zones/territory/spatial/SpatialQueryService.class",
+                  "ru/raskol/zones/territory/spatial/WorldSpatialIndex.class",
+                  "ru/raskol/zones/territory/spatial/SpatialQueryResult.class",
                   "org/sqlite/JDBC.class",
               }
               missing = sorted(required - names)

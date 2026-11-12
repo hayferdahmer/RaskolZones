@@ -94,6 +94,7 @@ public final class RaskolZonesPlugin extends JavaPlugin {
 
             if (isEnabled() && health.snapshot().status()
                     == ru.raskol.zones.foundation.health.HealthStatus.READY) {
+                getLogger().info("Пространственные индексы готовы для миров: " + initialWorldIds.size());
                 getLogger().info("RaskolZones готов. Состояние: " + health.snapshot().status());
             }
         });

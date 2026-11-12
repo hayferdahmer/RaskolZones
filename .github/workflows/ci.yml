@@ -28,6 +28,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+          cache: maven
 
       - name: Validate project documentation
         shell: bash
@@ -57,6 +58,7 @@ jobs:
               "## A-40. Защита квитанций решений от повторного и подменённого исполнения",
               "## A-41. Управление жизненным циклом криптографических ключей",
               "## A-42. Криптографический профиль и цепочка доверия",
+              "## A-43. Переход от проектирования к реализации",
           ]
           required_a38 = [f"### A38.{number}." for number in range(1, 9)]
           required_a39 = [f"### A39.{number}." for number in range(1, 9)]
@@ -84,7 +86,7 @@ jobs:
               raise SystemExit("Missing canonical decision sections: " + ", ".join(missing))
 
           required_technical = [
-              "Канонический журнал архитектурных решений содержит A-00–A-42",
+              "Канонический журнал архитектурных решений содержит A-00–A-43",
               "## 18. Нормативность и согласованность документации",
               "## 19. Краткая история решений",
               "A-35 — формальная модель угроз",
@@ -95,6 +97,7 @@ jobs:
               "A-40 — одноразовые криптографически защищённые квитанции",
               "A-41 — ротация ключей с периодом перекрытия",
               "A-42 — профиль Ed25519 с криптографической гибкостью",
+              "A-43 — переход к Maven-разработке модульного монолита",
           ]
           required_a38_technical = [
               "### A-38. Точная семантика приоритетов",
@@ -107,6 +110,19 @@ jobs:
               "decision receipt",
               "A-39 — версионная актуальность решений",
           ]
+          required_a43 = [f"### A43.{number}." for number in range(1, 8)]
+          missing_a43 = [heading for heading in required_a43 if heading not in decisions]
+          if missing_a43:
+              raise SystemExit("Canonical A-43 decision subsections missing: " + ", ".join(missing_a43))
+
+          required_a43_technical = [
+              "### A-43. Старт реализации и инженерный процесс",
+              "Maven", "Java 25", "Paper 26.2", "foundation", "модульный монолит", "Paper runtime/smoke tests",
+          ]
+          missing_a43_technical = [item for item in required_a43_technical if item not in technical]
+          if missing_a43_technical:
+              raise SystemExit("Technical specification is missing A-43 requirements: " + ", ".join(missing_a43_technical))
+
           required_a42_technical = [
               "### A-42. Криптографический профиль и цепочка доверия",
               "Ed25519",
@@ -158,7 +174,7 @@ jobs:
               "docs/ROADMAP.md",
               "Paper 26.2",
               "Java 25",
-              "Статус: проектирование",
+              "Статус: разработка — инженерный фундамент",
           ]
           missing = [item for item in required_readme if item not in readme]
           if missing:
@@ -182,10 +198,5 @@ jobs:
         if: hashFiles('pom.xml') != ''
         run: mvn --batch-mode --no-transfer-progress verify
 
-      - name: Build with Gradle
-        if: hashFiles('pom.xml') == '' && hashFiles('gradlew') != ''
-        run: ./gradlew --no-daemon check
-
-      - name: Report missing build configuration
-        if: hashFiles('pom.xml') == '' && hashFiles('gradlew') == ''
-        run: echo "No Maven or Gradle build descriptor yet; documentation validation completed, compilation was skipped."
+      - name: Require Maven build descriptor
+        run: test -s pom.xml

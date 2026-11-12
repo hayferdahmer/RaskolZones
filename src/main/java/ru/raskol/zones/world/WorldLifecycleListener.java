@@ -22,11 +22,13 @@ public final class WorldLifecycleListener implements Listener {
     @EventHandler
     public void onWorldLoad(WorldLoadEvent event) {
         var world = event.getWorld();
-        registry.registerLoadedWorld(world.getUID(), world.getName())
+        var worldId = world.getUID();
+        var worldName = world.getName();
+        registry.registerLoadedWorld(worldId, worldName)
                 .whenComplete((ignored, failure) -> {
                     if (failure != null) {
                         logger.log(Level.SEVERE,
-                                "Не удалось зарегистрировать загруженный мир " + world.getName(), failure);
+                                "Не удалось зарегистрировать загруженный мир " + worldName, failure);
                     }
                 });
     }
@@ -34,14 +36,16 @@ public final class WorldLifecycleListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onWorldUnload(WorldUnloadEvent event) {
         var world = event.getWorld();
-        registry.markWorldUnloaded(world.getUID())
+        var worldId = world.getUID();
+        var worldName = world.getName();
+        registry.markWorldUnloaded(worldId)
                 .whenComplete((updated, failure) -> {
                     if (failure != null) {
                         logger.log(Level.SEVERE,
-                                "Не удалось обновить состояние выгружаемого мира " + world.getName(), failure);
+                                "Не удалось обновить состояние выгружаемого мира " + worldName, failure);
                     } else if (!updated) {
-                        logger.warning("Выгружаемый мир отсутствует в реестре: " + world.getName()
-                                + " (" + world.getUID() + ")");
+                        logger.warning("Выгружаемый мир отсутствует в реестре: " + worldName
+                                + " (" + worldId + ")");
                     }
                 });
     }

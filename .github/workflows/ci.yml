@@ -219,6 +219,7 @@ jobs:
                   "ru/raskol/zones/foundation/FoundationRuntime.class",
                   "ru/raskol/zones/foundation/config/ConfigurationService.class",
                   "ru/raskol/zones/foundation/health/HealthService.class",
+                  "org/sqlite/JDBC.class",
               }
               missing = sorted(required - names)
               if missing:
@@ -336,8 +337,9 @@ jobs:
           fi
 
           grep -F "Enabling RaskolZones v" server.log
-          grep -F "RaskolZones foundation готов. Состояние: READY" server.log
+          grep -F "RaskolZones готов. Состояние: READY" server.log
           test -s plugins/RaskolZones/config.yml
+          test -s plugins/RaskolZones/raskolzones.db
           echo "Paper 26.2 runtime smoke test passed."
 
       - name: Require Maven build descriptor

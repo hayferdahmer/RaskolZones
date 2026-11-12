@@ -56,11 +56,16 @@ jobs:
               "## A-39. Актуальность контекста и атомарность применения правил",
               "## A-40. Защита квитанций решений от повторного и подменённого исполнения",
               "## A-41. Управление жизненным циклом криптографических ключей",
+              "## A-42. Криптографический профиль и цепочка доверия",
           ]
           required_a38 = [f"### A38.{number}." for number in range(1, 9)]
           required_a39 = [f"### A39.{number}." for number in range(1, 9)]
           required_a40 = [f"### A40.{number}." for number in range(1, 9)]
           required_a41 = [f"### A41.{number}." for number in range(1, 9)]
+          required_a42 = [f"### A42.{number}." for number in range(1, 9)]
+          missing_a42 = [heading for heading in required_a42 if heading not in decisions]
+          if missing_a42:
+              raise SystemExit("Canonical A-42 decision subsections missing: " + ", ".join(missing_a42))
           missing_a41 = [heading for heading in required_a41 if heading not in decisions]
           if missing_a41:
               raise SystemExit("Canonical A-41 decision subsections missing: " + ", ".join(missing_a41))
@@ -79,7 +84,7 @@ jobs:
               raise SystemExit("Missing canonical decision sections: " + ", ".join(missing))
 
           required_technical = [
-              "Канонический журнал архитектурных решений содержит A-00–A-41",
+              "Канонический журнал архитектурных решений содержит A-00–A-42",
               "## 18. Нормативность и согласованность документации",
               "## 19. Краткая история решений",
               "A-35 — формальная модель угроз",
@@ -89,6 +94,7 @@ jobs:
               "A-39 — версионная актуальность решений",
               "A-40 — одноразовые криптографически защищённые квитанции",
               "A-41 — ротация ключей с периодом перекрытия",
+              "A-42 — профиль Ed25519 с криптографической гибкостью",
           ]
           required_a38_technical = [
               "### A-38. Точная семантика приоритетов",
@@ -101,6 +107,18 @@ jobs:
               "decision receipt",
               "A-39 — версионная актуальность решений",
           ]
+          required_a42_technical = [
+              "### A-42. Криптографический профиль и цепочка доверия",
+              "Ed25519",
+              "offline-pinned",
+              "signed_monotonic",
+              "canonical_versioned",
+              "jca_selftest",
+          ]
+          missing_a42_technical = [item for item in required_a42_technical if item not in technical]
+          if missing_a42_technical:
+              raise SystemExit("Technical specification is missing A-42 requirements: " + ", ".join(missing_a42_technical))
+
           required_a41_technical = [
               "### A-41. Управление жизненным циклом криптографических ключей",
               "verify-only",

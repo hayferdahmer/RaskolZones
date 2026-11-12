@@ -20,6 +20,7 @@ public final class FoundationRuntime {
     private PluginSettings settings;
     private boolean started;
     private boolean storageCloseRequested;
+    private CompletionStage<Void> shutdown;
 
     public FoundationRuntime(SettingsProvider configuration, HealthService health, Logger logger) {
         this(configuration, health, logger, null);
@@ -137,42 +138,41 @@ public final class FoundationRuntime {
      */
     public CompletionStage<Void> stopAsync() {
         synchronized (this) {
+            if (shutdown != null) {
+                return shutdown;
+            }
             if (started) {
                 started = false;
                 settings = null;
             }
-            if (!storageCloseRequested) {
-                storageCloseRequested = true;
-                HealthStatus status = health.snapshot().status();
-                if (status == HealthStatus.STARTING
-                        || status == HealthStatus.READY
-                        || status == HealthStatus.DEGRADED) {
-                    health.markStopping();
-                }
-            } else if (storage == null) {
-                return CompletableFuture.completedFuture(null);
+            storageCloseRequested = true;
+            HealthStatus status = health.snapshot().status();
+            if (status == HealthStatus.STARTING
+                    || status == HealthStatus.READY
+                    || status == HealthStatus.DEGRADED) {
+                health.markStopping();
             }
-        }
 
-        CompletionStage<Void> closing = storage == null
-                ? CompletableFuture.completedFuture(null)
-                : storage.closeAsync();
-
-        return closing.whenComplete((ignored, failure) -> {
-            synchronized (this) {
-                HealthStatus status = health.snapshot().status();
-                if (failure != null) {
-                    Throwable cause = unwrap(failure);
-                    if (status == HealthStatus.STOPPING) {
-                        health.markFailed("Ошибка закрытия хранилища: " + messageOf(cause));
+            CompletionStage<Void> closing = storage == null
+                    ? CompletableFuture.completedFuture(null)
+                    : storage.closeAsync();
+            shutdown = closing.whenComplete((ignored, failure) -> {
+                synchronized (this) {
+                    HealthStatus finalStatus = health.snapshot().status();
+                    if (failure != null) {
+                        Throwable cause = unwrap(failure);
+                        if (finalStatus == HealthStatus.STOPPING) {
+                            health.markFailed("Ошибка закрытия хранилища: " + messageOf(cause));
+                        }
+                        logger.severe("Ошибка закрытия SQLite-хранилища: " + messageOf(cause));
+                    } else if (finalStatus == HealthStatus.STOPPING) {
+                        health.markStopped();
+                        logger.info("Foundation runtime остановлен.");
                     }
-                    logger.severe("Ошибка закрытия SQLite-хранилища: " + messageOf(cause));
-                } else if (status == HealthStatus.STOPPING) {
-                    health.markStopped();
-                    logger.info("Foundation runtime остановлен.");
                 }
-            }
-        });
+            });
+            return shutdown;
+        }
     }
 
     public void stop() {

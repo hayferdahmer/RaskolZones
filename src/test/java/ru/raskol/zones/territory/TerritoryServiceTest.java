@@ -91,6 +91,11 @@ class TerritoryServiceTest {
             Territory child = service.create(new TerritoryDraft(
                     firstWorld, parent.id(), "city", "Город", 0, geometry
             )).toCompletableFuture().get();
+            var archiveParent = service.archive(parent.id(), parent.version()).toCompletableFuture();
+            ExecutionException activeChildren = assertThrows(ExecutionException.class, archiveParent::get);
+            assertEquals(TerritoryException.Code.ACTIVE_CHILDREN,
+                    ((TerritoryException) activeChildren.getCause()).code());
+
             var cycle = service.update(parent.id(), parent.version(), new TerritoryDraft(
                     firstWorld, child.id(), "region", "Материк", 0, geometry
             )).toCompletableFuture();

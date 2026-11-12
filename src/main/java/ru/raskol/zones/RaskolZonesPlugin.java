@@ -22,7 +22,6 @@ public final class RaskolZonesPlugin extends JavaPlugin {
             runtime.start();
             getLogger().info("RaskolZones foundation готов. Состояние: " + health.snapshot().status());
         } catch (RuntimeException exception) {
-            health.markFailed(exception.getMessage());
             getLogger().severe("Не удалось запустить RaskolZones: " + exception.getMessage());
             getServer().getPluginManager().disablePlugin(this);
         }

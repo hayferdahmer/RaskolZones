@@ -73,7 +73,7 @@ public final class RaskolZonesPlugin extends JavaPlugin {
         CompletableFuture<Void> spatialReady = registryReady.thenCompose(ignored ->
                 CompletableFuture.allOf(initialWorldIds.stream()
                         .map(spatialQueryService::refreshWorld)
-                        .map(CompletableFuture::completedFuture)
+                        .map(stage -> stage.toCompletableFuture())
                         .toArray(CompletableFuture[]::new))
         );
         runtime.startAsync(spatialReady).whenComplete((ignored, failure) -> {

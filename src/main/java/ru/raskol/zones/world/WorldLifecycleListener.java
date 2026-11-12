@@ -13,9 +13,19 @@ public final class WorldLifecycleListener implements Listener {
 
     private final WorldRegistryService registry;
     private final Logger logger;
+    private final SpatialQueryService spatialQueries;
 
     public WorldLifecycleListener(WorldRegistryService registry, Logger logger) {
+        this(registry, null, logger);
+    }
+
+    public WorldLifecycleListener(
+            WorldRegistryService registry,
+            SpatialQueryService spatialQueries,
+            Logger logger
+    ) {
         this.registry = Objects.requireNonNull(registry, "registry");
+        this.spatialQueries = spatialQueries;
         this.logger = Objects.requireNonNull(logger, "logger");
     }
 
@@ -25,6 +35,9 @@ public final class WorldLifecycleListener implements Listener {
         var worldId = world.getUID();
         var worldName = world.getName();
         registry.registerLoadedWorld(worldId, worldName)
+                .thenCompose(ignored -> spatialQueries == null
+                        ? java.util.concurrent.CompletableFuture.completedFuture(null)
+                        : spatialQueries.refreshWorld(worldId))
                 .whenComplete((ignored, failure) -> {
                     if (failure != null) {
                         logger.log(Level.SEVERE,
@@ -38,6 +51,9 @@ public final class WorldLifecycleListener implements Listener {
         var world = event.getWorld();
         var worldId = world.getUID();
         var worldName = world.getName();
+        if (spatialQueries != null) {
+            spatialQueries.unloadWorld(worldId);
+        }
         registry.markWorldUnloaded(worldId)
                 .whenComplete((updated, failure) -> {
                     if (failure != null) {

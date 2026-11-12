@@ -49,10 +49,15 @@ public final class FoundationRuntime {
             throw new IllegalStateException("Foundation runtime уже запущен");
         }
 
-        loadSettings();
-        started = true;
-        health.markReady();
-        logger.info("Конфигурация RaskolZones загружена. Язык: " + settings.language());
+        try {
+            loadSettings();
+            started = true;
+            health.markReady();
+            logger.info("Конфигурация RaskolZones загружена. Язык: " + settings.language());
+        } catch (RuntimeException exception) {
+            health.markFailed(exception.getMessage());
+            throw exception;
+        }
     }
 
     /**

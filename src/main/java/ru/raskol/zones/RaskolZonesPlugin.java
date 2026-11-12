@@ -1,6 +1,8 @@
 package ru.raskol.zones;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.raskol.zones.foundation.FoundationRuntime;
@@ -28,14 +30,17 @@ public final class RaskolZonesPlugin extends JavaPlugin {
                 this
         );
 
+        var initialWorldRegistrations = new ArrayList<CompletableFuture<Void>>();
         for (var world : getServer().getWorlds()) {
-            worldRegistry.registerLoadedWorld(world.getUID(), world.getName())
+            var registration = worldRegistry.registerLoadedWorld(world.getUID(), world.getName())
+                    .toCompletableFuture()
                     .whenComplete((ignored, failure) -> {
                         if (failure != null) {
                             getLogger().severe("Не удалось зарегистрировать мир "
                                     + world.getName() + ": " + failure.getMessage());
                         }
                     });
+            initialWorldRegistrations.add(registration);
         }
 
         runtime = new FoundationRuntime(
@@ -45,7 +50,10 @@ public final class RaskolZonesPlugin extends JavaPlugin {
                 storage
         );
 
-        runtime.startAsync().whenComplete((ignored, failure) -> {
+        CompletableFuture<Void> registryReady = CompletableFuture.allOf(
+                initialWorldRegistrations.toArray(CompletableFuture[]::new)
+        );
+        runtime.startAsync(registryReady).whenComplete((ignored, failure) -> {
             if (failure != null) {
                 Throwable cause = failure instanceof CompletionException && failure.getCause() != null
                         ? failure.getCause()

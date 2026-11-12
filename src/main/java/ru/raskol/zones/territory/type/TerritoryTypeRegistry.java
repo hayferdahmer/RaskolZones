@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import ru.raskol.zones.territory.TerritoryException;
 
 public final class TerritoryTypeRegistry {
     private final Map<String, TerritoryTypeDefinition> definitions = new ConcurrentHashMap<>();

@@ -221,6 +221,11 @@ jobs:
                   "ru/raskol/zones/foundation/health/HealthService.class",
                   "ru/raskol/zones/world/WorldRegistryService.class",
                   "ru/raskol/zones/world/WorldLifecycleListener.class",
+                  "ru/raskol/zones/territory/TerritoryService.class",
+                  "ru/raskol/zones/territory/SqliteTerritoryRepository.class",
+                  "ru/raskol/zones/territory/geometry/CuboidGeometry.class",
+                  "ru/raskol/zones/territory/geometry/PolygonGeometry.class",
+                  "ru/raskol/zones/territory/type/TerritoryTypeRegistry.class",
                   "org/sqlite/JDBC.class",
               }
               missing = sorted(required - names)
@@ -267,7 +272,7 @@ jobs:
 
           base = "https://fill.papermc.io/v3/projects/paper/versions/26.2"
           headers = {
-              "User-Agent": "RaskolZones-CI/1.0 (https://github.com/hayferdahmer/RaskolZonez)",
+              "User-Agent": "RaskolZones-CI/1.0 (https://github.com/hayferdahmer/RaskolZones)",
               "Accept": "application/json",
           }
 
@@ -379,7 +384,9 @@ jobs:
                   count = connection.execute(
                       "SELECT COUNT(*) FROM world_registry"
                   ).fetchone()[0] if "world_registry" in tables else 0
-              if version == 2 and "world_registry" in tables and count > 0:
+              territory_tables = {"territories", "territory_geometry", "territory_vertices"}
+              if version == 3 and "world_registry" in tables and territory_tables.issubset(tables) and count > 0:
+                  print(f"Territory schema verified: schema={version}, tables={sorted(territory_tables)}")
                   print(f"World registry verified: schema={version}, loaded worlds={count}")
                   break
               if time.monotonic() >= deadline:

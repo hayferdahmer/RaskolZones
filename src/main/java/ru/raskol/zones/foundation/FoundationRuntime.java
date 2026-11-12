@@ -40,6 +40,30 @@ public final class FoundationRuntime {
         }
     }
 
+    public synchronized PluginSettings reload() {
+        if (!started) {
+            throw new IllegalStateException("Нельзя перезагрузить конфигурацию до запуска runtime");
+        }
+
+        try {
+            PluginSettings reloadedSettings = Objects.requireNonNull(
+                    configuration.reload(),
+                    "Configuration provider вернул null при перезагрузке"
+            );
+            settings = reloadedSettings;
+            if (health.snapshot().status() == ru.raskol.zones.foundation.health.HealthStatus.DEGRADED) {
+                health.markReady();
+            }
+            logger.info("Конфигурация RaskolZones перезагружена. Язык: " + settings.language());
+            return settings;
+        } catch (RuntimeException exception) {
+            if (health.snapshot().status() == ru.raskol.zones.foundation.health.HealthStatus.READY) {
+                health.markDegraded("Ошибка перезагрузки конфигурации: " + exception.getMessage());
+            }
+            throw exception;
+        }
+    }
+
     public synchronized void stop() {
         if (!started) {
             return;

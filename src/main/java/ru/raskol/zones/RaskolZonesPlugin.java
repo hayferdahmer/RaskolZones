@@ -76,10 +76,20 @@ public final class RaskolZonesPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (runtime != null) {
-            runtime.stopAsync().whenComplete((ignored, failure) -> {
+            var finalWorldState = worldRegistry == null
+                    ? CompletableFuture.<Integer>completedFuture(0)
+                    : worldRegistry.markAllWorldsUnloaded();
+            finalWorldState.whenComplete((updated, failure) -> {
                 if (failure != null) {
-                    getLogger().severe("Ошибка при завершении RaskolZones: " + failure.getMessage());
+                    getLogger().severe("Не удалось сохранить состояние миров при выключении: "
+                            + failure.getMessage());
                 }
+                runtime.stopAsync().whenComplete((ignored, shutdownFailure) -> {
+                    if (shutdownFailure != null) {
+                        getLogger().severe("Ошибка при завершении RaskolZones: "
+                                + shutdownFailure.getMessage());
+                    }
+                });
             });
         } else if (storage != null) {
             storage.closeAsync().whenComplete((ignored, failure) -> {

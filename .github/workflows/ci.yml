@@ -198,5 +198,45 @@ jobs:
         if: hashFiles('pom.xml') != ''
         run: mvn --batch-mode --no-transfer-progress verify
 
+      - name: Inspect packaged plugin JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          jars = sorted(Path("target").glob("raskol-zones-*.jar"))
+          if len(jars) != 1:
+              raise SystemExit(f"Expected exactly one plugin JAR, found: {jars}")
+
+          jar = jars[0]
+          with ZipFile(jar) as archive:
+              names = set(archive.namelist())
+              required = {
+                  "plugin.yml",
+                  "ru/raskol/zones/RaskolZonesPlugin.class",
+                  "ru/raskol/zones/foundation/FoundationRuntime.class",
+                  "ru/raskol/zones/foundation/config/ConfigurationService.class",
+                  "ru/raskol/zones/foundation/health/HealthService.class",
+              }
+              missing = sorted(required - names)
+              if missing:
+                  raise SystemExit("JAR is missing required entries: " + ", ".join(missing))
+
+              descriptor = archive.read("plugin.yml").decode("utf-8")
+              required_metadata = [
+                  "main: ru.raskol.zones.RaskolZonesPlugin",
+                  "api-version: '26.2'",
+              ]
+              missing_metadata = [item for item in required_metadata if item not in descriptor]
+              if missing_metadata:
+                  raise SystemExit("plugin.yml metadata mismatch: " + ", ".join(missing_metadata))
+              if "${project.version}" in descriptor:
+                  raise SystemExit("plugin.yml contains an unresolved Maven version placeholder")
+
+          print(f"Packaged plugin verified: {jar} ({jar.stat().st_size} bytes)")
+          PY
+
       - name: Require Maven build descriptor
         run: test -s pom.xml

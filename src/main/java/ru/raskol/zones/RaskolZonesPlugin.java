@@ -2,8 +2,6 @@ package ru.raskol.zones;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletionException;
-import org.bukkit.event.world.WorldLoadEvent;
-import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.raskol.zones.foundation.FoundationRuntime;
 import ru.raskol.zones.foundation.config.ConfigurationService;

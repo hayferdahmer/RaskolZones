@@ -27,7 +27,53 @@ class SqliteStorageServiceTest {
                     return result.getInt(1);
                 }
             }).toCompletableFuture().get();
-            assertEquals(1, version);
+            assertEquals(2, version);
+        }
+    }
+
+    @Test
+    void migratesExistingVersionOneDatabaseToWorldRegistry() throws Exception {
+        Path database = temporaryDirectory.resolve("legacy-v1.db");
+        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database);
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE schema_migrations (
+                        version INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        applied_at TEXT NOT NULL
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE plugin_metadata (
+                        metadata_key TEXT PRIMARY KEY,
+                        metadata_value TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    )
+                    """);
+            statement.execute("PRAGMA user_version = 1");
+        }
+
+        try (var storage = new SqliteStorageService(database)) {
+            storage.initialize().toCompletableFuture().get();
+            int version = storage.transaction(connection -> {
+                try (var statement = connection.createStatement();
+                     var result = statement.executeQuery("PRAGMA user_version")) {
+                    result.next();
+                    return result.getInt(1);
+                }
+            }).toCompletableFuture().get();
+            assertEquals(2, version);
+
+            int tableCount = storage.transaction(connection -> {
+                try (var statement = connection.createStatement();
+                     var result = statement.executeQuery(
+                             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' "
+                                     + "AND name = 'world_registry'")) {
+                    result.next();
+                    return result.getInt(1);
+                }
+            }).toCompletableFuture().get();
+            assertEquals(1, tableCount);
         }
     }
 

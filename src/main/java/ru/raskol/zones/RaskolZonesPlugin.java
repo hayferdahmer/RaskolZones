@@ -32,12 +32,14 @@ public final class RaskolZonesPlugin extends JavaPlugin {
 
         var initialWorldRegistrations = new ArrayList<CompletableFuture<Void>>();
         for (var world : getServer().getWorlds()) {
-            var registration = worldRegistry.registerLoadedWorld(world.getUID(), world.getName())
+            var worldId = world.getUID();
+            var worldName = world.getName();
+            var registration = worldRegistry.registerLoadedWorld(worldId, worldName)
                     .toCompletableFuture()
                     .whenComplete((ignored, failure) -> {
                         if (failure != null) {
                             getLogger().severe("Не удалось зарегистрировать мир "
-                                    + world.getName() + ": " + failure.getMessage());
+                                    + worldName + ": " + failure.getMessage());
                         }
                     });
             initialWorldRegistrations.add(registration);

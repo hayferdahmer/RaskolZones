@@ -2,20 +2,20 @@ package ru.raskol.zones.foundation;
 
 import java.util.Objects;
 import java.util.logging.Logger;
-import ru.raskol.zones.foundation.config.ConfigurationService;
+import ru.raskol.zones.foundation.config.SettingsProvider;
 import ru.raskol.zones.foundation.config.PluginSettings;
 import ru.raskol.zones.foundation.health.HealthService;
 
 public final class FoundationRuntime {
 
-    private final ConfigurationService configuration;
+    private final SettingsProvider configuration;
     private final HealthService health;
     private final Logger logger;
     private PluginSettings settings;
     private boolean started;
 
     public FoundationRuntime(
-            ConfigurationService configuration,
+            SettingsProvider configuration,
             HealthService health,
             Logger logger
     ) {

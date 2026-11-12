@@ -219,6 +219,8 @@ jobs:
                   "ru/raskol/zones/foundation/FoundationRuntime.class",
                   "ru/raskol/zones/foundation/config/ConfigurationService.class",
                   "ru/raskol/zones/foundation/health/HealthService.class",
+                  "ru/raskol/zones/world/WorldRegistryService.class",
+                  "ru/raskol/zones/world/WorldLifecycleListener.class",
                   "org/sqlite/JDBC.class",
               }
               missing = sorted(required - names)
@@ -360,6 +362,33 @@ jobs:
           grep -F "RaskolZones готов. Состояние: READY" server.log
           test -s plugins/RaskolZones/config.yml
           test -s plugins/RaskolZones/raskolzones.db
+          python3 - <<'PY'
+          import sqlite3
+          import time
+
+          database = "plugins/RaskolZones/raskolzones.db"
+          deadline = time.monotonic() + 15
+          while True:
+              with sqlite3.connect(database, timeout=5) as connection:
+                  version = connection.execute("PRAGMA user_version").fetchone()[0]
+                  tables = {
+                      row[0] for row in connection.execute(
+                          "SELECT name FROM sqlite_master WHERE type = 'table'"
+                      )
+                  }
+                  count = connection.execute(
+                      "SELECT COUNT(*) FROM world_registry"
+                  ).fetchone()[0] if "world_registry" in tables else 0
+              if version == 2 and "world_registry" in tables and count > 0:
+                  print(f"World registry verified: schema={version}, loaded worlds={count}")
+                  break
+              if time.monotonic() >= deadline:
+                  raise SystemExit(
+                      f"World registry not initialized: schema={version}, "
+                      f"tables={sorted(tables)}, records={count}"
+                  )
+              time.sleep(0.5)
+          PY
           echo "Paper 26.2 runtime smoke test passed."
 
       - name: Require Maven build descriptor

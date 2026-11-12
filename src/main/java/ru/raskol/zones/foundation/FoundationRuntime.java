@@ -64,6 +64,14 @@ public final class FoundationRuntime {
      * Запускает хранилище вне основного потока Paper и публикует READY только после его инициализации.
      */
     public CompletionStage<Void> startAsync() {
+        return startAsync(CompletableFuture.completedFuture(null));
+    }
+
+    /**
+     * Запускает runtime и ждёт дополнительные обязательные проверки готовности.
+     */
+    public CompletionStage<Void> startAsync(CompletionStage<Void> readinessPrerequisite) {
+        Objects.requireNonNull(readinessPrerequisite, "readinessPrerequisite");
         synchronized (this) {
             if (started) {
                 return CompletableFuture.failedFuture(
@@ -85,17 +93,14 @@ public final class FoundationRuntime {
             }
         }
 
-        if (storage == null) {
-            synchronized (this) {
-                if (started) {
-                    health.markReady();
-                    logger.info("Конфигурация RaskolZones загружена. Язык: " + settings.language());
-                }
-            }
-            return CompletableFuture.completedFuture(null);
-        }
+        CompletionStage<Void> storageInitialization = storage == null
+                ? CompletableFuture.completedFuture(null)
+                : storage.initialize();
 
-        return storage.initialize().handle((ignored, failure) -> {
+        return CompletableFuture.allOf(
+                storageInitialization.toCompletableFuture(),
+                readinessPrerequisite.toCompletableFuture()
+        ).handle((ignored, failure) -> {
             synchronized (this) {
                 if (failure != null) {
                     Throwable cause = unwrap(failure);
@@ -106,7 +111,7 @@ public final class FoundationRuntime {
                 }
                 if (started && health.snapshot().status() == HealthStatus.STARTING) {
                     health.markReady();
-                    logger.info("Конфигурация и SQLite-хранилище RaskolZones готовы. Язык: "
+                    logger.info("Конфигурация, хранилище и обязательные компоненты RaskolZones готовы. Язык: "
                             + settings.language());
                 }
             }

@@ -33,6 +33,16 @@ class HealthServiceTest {
     }
 
     @Test
+    void allowsShutdownWhileStillStarting() {
+        var health = new HealthService();
+
+        health.markStopping();
+        health.markStopped();
+
+        assertEquals(HealthStatus.STOPPED, health.snapshot().status());
+    }
+
+    @Test
     void rejectsSkippingRequiredLifecycleStates() {
         var health = new HealthService();
 

@@ -134,6 +134,46 @@ class SqliteStorageServiceTest {
     }
 
     @Test
+    void drainsQueuedTransactionsInSubmissionOrderDuringShutdown() throws Exception {
+        Path database = temporaryDirectory.resolve("queued-shutdown.db");
+        var storage = new SqliteStorageService(database);
+
+        var insert = storage.transaction(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    INSERT INTO plugin_metadata(metadata_key, metadata_value, updated_at)
+                    VALUES ('ordered-check', 'first', '2026-11-12T00:00:00Z')
+                    """)) {
+                statement.executeUpdate();
+            }
+            return null;
+        });
+        var update = storage.transaction(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    UPDATE plugin_metadata
+                    SET metadata_value = 'second'
+                    WHERE metadata_key = 'ordered-check'
+                    """)) {
+                return statement.executeUpdate();
+            }
+        });
+        var closing = storage.closeAsync();
+
+        insert.toCompletableFuture().get();
+        assertEquals(1, update.toCompletableFuture().get());
+        closing.toCompletableFuture().get();
+
+        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database);
+             var statement = connection.createStatement();
+             var result = statement.executeQuery("""
+                     SELECT metadata_value FROM plugin_metadata
+                     WHERE metadata_key = 'ordered-check'
+                     """)) {
+            assertTrue(result.next());
+            assertEquals("second", result.getString(1));
+        }
+    }
+
+    @Test
     void asynchronousCloseIsIdempotent() throws Exception {
         var storage = new SqliteStorageService(temporaryDirectory.resolve("idempotent-close.db"));
 

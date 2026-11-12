@@ -2,25 +2,49 @@ package ru.raskol.zones;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletionException;
+import org.bukkit.event.world.WorldLoadEvent;
+import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import ru.raskol.zones.foundation.FoundationRuntime;
 import ru.raskol.zones.foundation.config.ConfigurationService;
 import ru.raskol.zones.foundation.health.HealthService;
 import ru.raskol.zones.foundation.storage.SqliteStorageService;
+import ru.raskol.zones.world.WorldLifecycleListener;
+import ru.raskol.zones.world.WorldRegistryService;
 
 public final class RaskolZonesPlugin extends JavaPlugin {
 
     private FoundationRuntime runtime;
+    private SqliteStorageService storage;
+    private WorldRegistryService worldRegistry;
 
     @Override
     public void onEnable() {
         var health = new HealthService();
         Path databasePath = getDataFolder().toPath().resolve("raskolzones.db");
+        storage = new SqliteStorageService(databasePath);
+        worldRegistry = new WorldRegistryService(storage);
+
+        getServer().getPluginManager().registerEvents(
+                new WorldLifecycleListener(worldRegistry, getLogger()),
+                this
+        );
+
+        for (var world : getServer().getWorlds()) {
+            worldRegistry.registerLoadedWorld(world.getUID(), world.getName())
+                    .whenComplete((ignored, failure) -> {
+                        if (failure != null) {
+                            getLogger().severe("Не удалось зарегистрировать мир "
+                                    + world.getName() + ": " + failure.getMessage());
+                        }
+                    });
+        }
+
         runtime = new FoundationRuntime(
                 new ConfigurationService(this),
                 health,
                 getLogger(),
-                new SqliteStorageService(databasePath)
+                storage
         );
 
         runtime.startAsync().whenComplete((ignored, failure) -> {
@@ -47,6 +71,12 @@ public final class RaskolZonesPlugin extends JavaPlugin {
             runtime.stopAsync().whenComplete((ignored, failure) -> {
                 if (failure != null) {
                     getLogger().severe("Ошибка при завершении RaskolZones: " + failure.getMessage());
+                }
+            });
+        } else if (storage != null) {
+            storage.closeAsync().whenComplete((ignored, failure) -> {
+                if (failure != null) {
+                    getLogger().severe("Ошибка при закрытии SQLite: " + failure.getMessage());
                 }
             });
         }

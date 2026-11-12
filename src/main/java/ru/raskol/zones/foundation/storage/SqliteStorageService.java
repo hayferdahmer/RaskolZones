@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class SqliteStorageService implements StorageService {
-    private static final int CURRENT_SCHEMA_VERSION = 1;
+    private static final int CURRENT_SCHEMA_VERSION = 2;
     private static final int BUSY_TIMEOUT_MILLIS = 5_000;
 
     private final Path databasePath;
@@ -92,9 +92,46 @@ public final class SqliteStorageService implements StorageService {
             }
             if (currentVersion < 1) {
                 applyInitialMigration(connection);
+                currentVersion = 1;
+            }
+            if (currentVersion < 2) {
+                applyWorldRegistryMigration(connection);
             }
         } catch (SQLException exception) {
             throw new StorageException("Не удалось инициализировать SQLite-хранилище", exception);
+        }
+    }
+
+    private void applyWorldRegistryMigration(Connection connection) throws SQLException {
+        connection.setAutoCommit(false);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE world_registry (
+                        world_uuid TEXT PRIMARY KEY,
+                        world_name TEXT NOT NULL CHECK (length(trim(world_name)) > 0),
+                        first_seen_at TEXT NOT NULL,
+                        last_seen_at TEXT NOT NULL,
+                        availability TEXT NOT NULL CHECK (availability IN ('LOADED', 'UNLOADED'))
+                    )
+                    """);
+            statement.execute("""
+                    CREATE INDEX idx_world_registry_availability
+                    ON world_registry(availability)
+                    """);
+            try (var insert = connection.prepareStatement(
+                    "INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)")) {
+                insert.setInt(1, 2);
+                insert.setString(2, "world_registry");
+                insert.setString(3, Instant.now().toString());
+                insert.executeUpdate();
+            }
+            statement.execute("PRAGMA user_version = 2");
+            connection.commit();
+        } catch (SQLException exception) {
+            connection.rollback();
+            throw exception;
+        } finally {
+            connection.setAutoCommit(true);
         }
     }
 

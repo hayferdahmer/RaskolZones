@@ -14,6 +14,7 @@ import ru.raskol.zones.world.WorldRegistryService;
 import ru.raskol.zones.territory.SqliteTerritoryRepository;
 import ru.raskol.zones.territory.TerritoryService;
 import ru.raskol.zones.territory.type.TerritoryTypeRegistry;
+import ru.raskol.zones.territory.spatial.SpatialQueryService;
 
 public final class RaskolZonesPlugin extends JavaPlugin {
 
@@ -21,6 +22,7 @@ public final class RaskolZonesPlugin extends JavaPlugin {
     private SqliteStorageService storage;
     private WorldRegistryService worldRegistry;
     private TerritoryService territoryService;
+    private SpatialQueryService spatialQueryService;
 
     @Override
     public void onEnable() {
@@ -28,20 +30,25 @@ public final class RaskolZonesPlugin extends JavaPlugin {
         Path databasePath = getDataFolder().toPath().resolve("raskolzones.db");
         storage = new SqliteStorageService(databasePath);
         worldRegistry = new WorldRegistryService(storage);
+        var territoryRepository = new SqliteTerritoryRepository(storage);
+        spatialQueryService = new SpatialQueryService(territoryRepository);
         territoryService = new TerritoryService(
-                new SqliteTerritoryRepository(storage),
-                TerritoryTypeRegistry.standard()
+                territoryRepository,
+                TerritoryTypeRegistry.standard(),
+                spatialQueryService
         );
 
         getServer().getPluginManager().registerEvents(
-                new WorldLifecycleListener(worldRegistry, getLogger()),
+                new WorldLifecycleListener(worldRegistry, spatialQueryService, getLogger()),
                 this
         );
 
         var initialWorldRegistrations = new ArrayList<CompletableFuture<Void>>();
+        var initialWorldIds = new ArrayList<java.util.UUID>();
         for (var world : getServer().getWorlds()) {
             var worldId = world.getUID();
             var worldName = world.getName();
+            initialWorldIds.add(worldId);
             var registration = worldRegistry.registerLoadedWorld(worldId, worldName)
                     .toCompletableFuture()
                     .whenComplete((ignored, failure) -> {
@@ -63,7 +70,13 @@ public final class RaskolZonesPlugin extends JavaPlugin {
         CompletableFuture<Void> registryReady = CompletableFuture.allOf(
                 initialWorldRegistrations.toArray(CompletableFuture[]::new)
         );
-        runtime.startAsync(registryReady).whenComplete((ignored, failure) -> {
+        CompletableFuture<Void> spatialReady = registryReady.thenCompose(ignored ->
+                CompletableFuture.allOf(initialWorldIds.stream()
+                        .map(spatialQueryService::refreshWorld)
+                        .map(CompletableFuture::completedFuture)
+                        .toArray(CompletableFuture[]::new))
+        );
+        runtime.startAsync(spatialReady).whenComplete((ignored, failure) -> {
             if (failure != null) {
                 Throwable cause = failure instanceof CompletionException && failure.getCause() != null
                         ? failure.getCause()

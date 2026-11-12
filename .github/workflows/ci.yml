@@ -337,6 +337,26 @@ jobs:
           fi
 
           grep -F "Enabling RaskolZones v" server.log
+          ready=false
+          for attempt in $(seq 1 30); do
+            if grep -Fq "RaskolZones готов. Состояние: READY" server.log; then
+              ready=true
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat server.log
+              echo "Paper server exited before RaskolZones became ready"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != true ]; then
+            cat server.log
+            echo "RaskolZones did not become ready within 30 seconds"
+            exit 1
+          fi
+
           grep -F "RaskolZones готов. Состояние: READY" server.log
           test -s plugins/RaskolZones/config.yml
           test -s plugins/RaskolZones/raskolzones.db

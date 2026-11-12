@@ -2,6 +2,7 @@ package ru.raskol.zones.foundation.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -130,6 +131,17 @@ class SqliteStorageServiceTest {
             assertTrue(result.next());
             assertEquals("persisted", result.getString(1));
         }
+    }
+
+    @Test
+    void asynchronousCloseIsIdempotent() throws Exception {
+        var storage = new SqliteStorageService(temporaryDirectory.resolve("idempotent-close.db"));
+
+        var firstClose = storage.closeAsync();
+        var secondClose = storage.closeAsync();
+
+        assertSame(firstClose, secondClose);
+        firstClose.toCompletableFuture().get();
     }
 
     @Test

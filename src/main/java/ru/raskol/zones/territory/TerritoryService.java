@@ -6,15 +6,28 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+import ru.raskol.zones.territory.spatial.SpatialQueryService;
 import ru.raskol.zones.territory.type.TerritoryTypeRegistry;
 
 public final class TerritoryService {
     private final TerritoryRepository repository;
     private final TerritoryTypeRegistry types;
+    private final SpatialQueryService spatialQueries;
 
     public TerritoryService(TerritoryRepository repository, TerritoryTypeRegistry types) {
+        this(repository, types, null);
+    }
+
+    public TerritoryService(
+            TerritoryRepository repository,
+            TerritoryTypeRegistry types,
+            SpatialQueryService spatialQueries
+    ) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.types = Objects.requireNonNull(types, "types");
+        this.spatialQueries = spatialQueries;
     }
 
     public CompletionStage<Territory> create(TerritoryDraft draft) {
@@ -34,7 +47,7 @@ public final class TerritoryService {
                 now,
                 now
         );
-        return repository.create(territory);
+        return persistAndRefresh(territory.worldId(), () -> repository.create(territory));
     }
 
     public CompletionStage<Optional<Territory>> find(UUID territoryId) {
@@ -78,8 +91,41 @@ public final class TerritoryService {
                     existing.createdAt(),
                     Instant.now()
             );
-            return repository.update(updated, expectedVersion);
+            return persistAndRefresh(updated.worldId(), () -> repository.update(updated, expectedVersion));
         });
+    }
+
+    private CompletionStage<Territory> persistAndRefresh(
+            UUID worldId,
+            Supplier<CompletionStage<Territory>> persistence
+    ) {
+        if (spatialQueries == null) {
+            return persistence.get();
+        }
+
+        spatialQueries.invalidateWorld(worldId);
+        CompletableFuture<Territory> result = new CompletableFuture<>();
+        persistence.get().whenComplete((saved, persistenceFailure) ->
+                spatialQueries.refreshWorld(worldId).whenComplete((ignored, refreshFailure) -> {
+                    if (persistenceFailure != null) {
+                        result.completeExceptionally(unwrap(persistenceFailure));
+                    } else if (refreshFailure != null) {
+                        result.completeExceptionally(unwrap(refreshFailure));
+                    } else {
+                        result.complete(saved);
+                    }
+                })
+        );
+        return result;
+    }
+
+    private static Throwable unwrap(Throwable failure) {
+        Throwable cause = failure;
+        while ((cause instanceof java.util.concurrent.CompletionException)
+                && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        return cause;
     }
 
     public CompletionStage<Territory> archive(UUID territoryId, long expectedVersion) {
@@ -110,7 +156,7 @@ public final class TerritoryService {
                     existing.createdAt(),
                     Instant.now()
             );
-            return repository.update(archived, expectedVersion);
+            return persistAndRefresh(archived.worldId(), () -> repository.update(archived, expectedVersion));
         });
     }
 }

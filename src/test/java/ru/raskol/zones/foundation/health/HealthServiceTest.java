@@ -29,7 +29,7 @@ class HealthServiceTest {
 
         assertEquals(HealthStatus.STOPPED, health.snapshot().status());
         assertThrows(IllegalStateException.class, health::markReady);
-        assertThrows(IllegalStateException.class, health::markFailed);
+        assertThrows(IllegalStateException.class, () -> health.markFailed("Повторный отказ"));
     }
 
     @Test
@@ -37,7 +37,7 @@ class HealthServiceTest {
         var health = new HealthService();
 
         assertThrows(IllegalStateException.class, health::markStopped);
-        assertThrows(IllegalStateException.class, health::markDegraded);
+        assertThrows(IllegalStateException.class, () -> health.markDegraded("Повторная деградация"));
         assertEquals(HealthStatus.STARTING, health.snapshot().status());
     }
 

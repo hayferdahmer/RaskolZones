@@ -11,12 +11,16 @@ import ru.raskol.zones.foundation.health.HealthService;
 import ru.raskol.zones.foundation.storage.SqliteStorageService;
 import ru.raskol.zones.world.WorldLifecycleListener;
 import ru.raskol.zones.world.WorldRegistryService;
+import ru.raskol.zones.territory.SqliteTerritoryRepository;
+import ru.raskol.zones.territory.TerritoryService;
+import ru.raskol.zones.territory.type.TerritoryTypeRegistry;
 
 public final class RaskolZonesPlugin extends JavaPlugin {
 
     private FoundationRuntime runtime;
     private SqliteStorageService storage;
     private WorldRegistryService worldRegistry;
+    private TerritoryService territoryService;
 
     @Override
     public void onEnable() {
@@ -24,6 +28,10 @@ public final class RaskolZonesPlugin extends JavaPlugin {
         Path databasePath = getDataFolder().toPath().resolve("raskolzones.db");
         storage = new SqliteStorageService(databasePath);
         worldRegistry = new WorldRegistryService(storage);
+        territoryService = new TerritoryService(
+                new SqliteTerritoryRepository(storage),
+                TerritoryTypeRegistry.standard()
+        );
 
         getServer().getPluginManager().registerEvents(
                 new WorldLifecycleListener(worldRegistry, getLogger()),

@@ -28,12 +28,12 @@ class SqliteStorageServiceTest {
                     return result.getInt(1);
                 }
             }).toCompletableFuture().get();
-            assertEquals(2, version);
+            assertEquals(3, version);
         }
     }
 
     @Test
-    void migratesExistingVersionOneDatabaseToWorldRegistry() throws Exception {
+    void migratesExistingVersionOneDatabaseToTerritoryCore() throws Exception {
         Path database = temporaryDirectory.resolve("legacy-v1.db");
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database);
              var statement = connection.createStatement()) {
@@ -63,7 +63,7 @@ class SqliteStorageServiceTest {
                     return result.getInt(1);
                 }
             }).toCompletableFuture().get();
-            assertEquals(2, version);
+            assertEquals(3, version);
 
             int tableCount = storage.transaction(connection -> {
                 try (var statement = connection.createStatement();
@@ -75,6 +75,20 @@ class SqliteStorageServiceTest {
                 }
             }).toCompletableFuture().get();
             assertEquals(1, tableCount);
+
+            int territoryTables = storage.transaction(connection -> {
+                try (var statement = connection.createStatement();
+                     var result = statement.executeQuery("""
+                             SELECT COUNT(*) FROM sqlite_master
+                             WHERE type = 'table' AND name IN (
+                                 'territories', 'territory_geometry', 'territory_vertices'
+                             )
+                             """)) {
+                    result.next();
+                    return result.getInt(1);
+                }
+            }).toCompletableFuture().get();
+            assertEquals(3, territoryTables);
         }
     }
 

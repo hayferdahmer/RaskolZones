@@ -25,6 +25,7 @@ public final class SqliteStorageService implements StorageService {
     private final ExecutorService executor;
     private final AtomicBoolean closed = new AtomicBoolean();
     private CompletableFuture<Void> initialization;
+    private CompletableFuture<Void> pendingOperations = CompletableFuture.completedFuture(null);
 
     public SqliteStorageService(Path databasePath) {
         this.databasePath = Objects.requireNonNull(databasePath, "databasePath")
@@ -49,21 +50,23 @@ public final class SqliteStorageService implements StorageService {
     }
 
     @Override
-    public <T> CompletionStage<T> transaction(SqlWork<T> work) {
+    public synchronized <T> CompletionStage<T> transaction(SqlWork<T> work) {
         Objects.requireNonNull(work, "work");
         if (closed.get()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Хранилище уже закрыто"));
         }
-        return initialize().thenCompose(ignored -> {
-            if (closed.get()) {
-                return CompletableFuture.failedFuture(new IllegalStateException("Хранилище уже закрыто"));
-            }
-            try {
-                return CompletableFuture.supplyAsync(() -> executeTransaction(work), executor);
-            } catch (RejectedExecutionException exception) {
-                return CompletableFuture.failedFuture(exception);
-            }
-        });
+
+        CompletableFuture<T> operation = initialize()
+                .thenCompose(ignored -> CompletableFuture.supplyAsync(
+                        () -> executeTransaction(work),
+                        executor
+                ))
+                .toCompletableFuture();
+        pendingOperations = CompletableFuture.allOf(
+                pendingOperations,
+                operation.handle((ignored, failure) -> null)
+        );
+        return operation;
     }
 
     private void initializeDatabase() {
@@ -217,9 +220,26 @@ public final class SqliteStorageService implements StorageService {
 
     @Override
     public void close() {
-        if (!closed.compareAndSet(false, true)) {
-            return;
+        CompletableFuture<Void> pending;
+        synchronized (this) {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            CompletableFuture<Void> initializationResult = initialization == null
+                    ? CompletableFuture.completedFuture(null)
+                    : initialization.handle((ignored, failure) -> null);
+            pending = CompletableFuture.allOf(initializationResult, pendingOperations);
         }
+
+        try {
+            pending.get();
+        } catch (java.util.concurrent.ExecutionException exception) {
+            throw new IllegalStateException("Ошибка завершения операций SQLite", exception.getCause());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Ожидание операций SQLite прервано", exception);
+        }
+
         executor.shutdown();
         try {
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {

@@ -1,0 +1,71 @@
+name: RaskolZones CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: raskolzones-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    name: Validate repository and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Java 25
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Validate project documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s README.md
+          test -s docs/ARCHITECTURE_DECISIONS.md
+          python3 - <<'PY'
+          from pathlib import Path
+
+          required = [
+              "## A-00. Базовая архитектура",
+              "## A-18. Публичный API и интеграционные контракты",
+              "### A18.8. Дополнительные пожелания",
+              "## A-19. Безопасность административных операций",
+          ]
+          document = Path("docs/ARCHITECTURE_DECISIONS.md").read_text(encoding="utf-8")
+          missing = [heading for heading in required if heading not in document]
+          if missing:
+              raise SystemExit("Missing required specification sections: " + ", ".join(missing))
+
+          checked = [Path("README.md"), Path("docs/ARCHITECTURE_DECISIONS.md")]
+          for path in checked:
+              for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                  if line.rstrip() != line:
+                      raise SystemExit(f"{path}:{number}: trailing whitespace")
+          print("Documentation structure and whitespace checks passed.")
+          PY
+
+      - name: Build with Maven
+        if: hashFiles('pom.xml') != ''
+        run: mvn --batch-mode --no-transfer-progress verify
+
+      - name: Build with Gradle
+        if: hashFiles('pom.xml') == '' && hashFiles('gradlew') != ''
+        run: ./gradlew --no-daemon check
+
+      - name: Report missing build configuration
+        if: hashFiles('pom.xml') == '' && hashFiles('gradlew') == ''
+        run: echo "No Maven or Gradle build descriptor yet; documentation validation completed, compilation was skipped."

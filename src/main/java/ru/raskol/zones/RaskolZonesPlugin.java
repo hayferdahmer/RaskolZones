@@ -61,15 +61,20 @@ public final class RaskolZonesPlugin extends JavaPlugin {
                         ? failure.getCause()
                         : failure;
                 getLogger().severe("Не удалось запустить RaskolZones: " + cause.getMessage());
-                getServer().getScheduler().runTask(this, () -> {
-                    if (isEnabled()) {
-                        getServer().getPluginManager().disablePlugin(this);
-                    }
-                });
+                if (isEnabled()) {
+                    getServer().getScheduler().runTask(this, () -> {
+                        if (isEnabled()) {
+                            getServer().getPluginManager().disablePlugin(this);
+                        }
+                    });
+                }
                 return;
             }
 
-            getLogger().info("RaskolZones готов. Состояние: " + health.snapshot().status());
+            if (isEnabled() && health.snapshot().status()
+                    == ru.raskol.zones.foundation.health.HealthStatus.READY) {
+                getLogger().info("RaskolZones готов. Состояние: " + health.snapshot().status());
+            }
         });
     }
 

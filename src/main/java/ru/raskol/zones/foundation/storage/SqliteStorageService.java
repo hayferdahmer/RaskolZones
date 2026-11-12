@@ -163,6 +163,22 @@ public final class SqliteStorageService implements StorageService {
     }
 
     @Override
+    public CompletionStage<Void> closeAsync() {
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        Thread shutdownThread = new Thread(() -> {
+            try {
+                close();
+                completion.complete(null);
+            } catch (RuntimeException exception) {
+                completion.completeExceptionally(exception);
+            }
+        }, "RaskolZones-SQLite-Shutdown");
+        shutdownThread.setDaemon(false);
+        shutdownThread.start();
+        return completion;
+    }
+
+    @Override
     public void close() {
         if (!closed.compareAndSet(false, true)) {
             return;

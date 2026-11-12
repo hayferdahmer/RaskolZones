@@ -1,0 +1,5 @@
+# Основные настройки RaskolZones.
+language: ru
+
+diagnostics:
+  enabled: false

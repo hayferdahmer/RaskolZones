@@ -5,7 +5,7 @@ import java.util.Objects;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public final class ConfigurationService {
+public final class ConfigurationService implements SettingsProvider {
 
     private final JavaPlugin plugin;
 
@@ -13,6 +13,7 @@ public final class ConfigurationService {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
     }
 
+    @Override
     public PluginSettings load() {
         plugin.saveDefaultConfig();
         FileConfiguration config = plugin.getConfig();

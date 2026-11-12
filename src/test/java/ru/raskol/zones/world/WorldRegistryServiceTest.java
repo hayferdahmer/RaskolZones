@@ -36,6 +36,22 @@ class WorldRegistryServiceTest {
     }
 
     @Test
+    void preservesLoadThenUnloadOrderWhenEventsArriveDuringInitialization() throws Exception {
+        try (var storage = new SqliteStorageService(temporaryDirectory.resolve("world-event-order.db"))) {
+            var registry = new WorldRegistryService(storage);
+            UUID worldId = UUID.randomUUID();
+
+            var load = registry.registerLoadedWorld(worldId, "event-world");
+            var unload = registry.markWorldUnloaded(worldId);
+
+            load.toCompletableFuture().get();
+            assertTrue(unload.toCompletableFuture().get());
+            WorldRecord record = registry.find(worldId).toCompletableFuture().get().orElseThrow();
+            assertEquals(WorldAvailability.UNLOADED, record.availability());
+        }
+    }
+
+    @Test
     void unloadKeepsWorldRecordAndReloadRestoresAvailability() throws Exception {
         try (var storage = new SqliteStorageService(temporaryDirectory.resolve("world-lifecycle.db"))) {
             var registry = new WorldRegistryService(storage);

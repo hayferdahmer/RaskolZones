@@ -54,9 +54,14 @@ jobs:
               "## A-37. Детерминированное разрешение территориальных правил",
               "## A-38. Точная семантика приоритетов",
               "## A-39. Актуальность контекста и атомарность применения правил",
+              "## A-40. Защита квитанций решений от повторного и подменённого исполнения",
           ]
           required_a38 = [f"### A38.{number}." for number in range(1, 9)]
           required_a39 = [f"### A39.{number}." for number in range(1, 9)]
+          required_a40 = [f"### A40.{number}." for number in range(1, 9)]
+          missing_a40 = [heading for heading in required_a40 if heading not in decisions]
+          if missing_a40:
+              raise SystemExit("Canonical A-40 decision subsections missing: " + ", ".join(missing_a40))
           missing_a39 = [heading for heading in required_a39 if heading not in decisions]
           if missing_a39:
               raise SystemExit("Canonical A-39 decision subsections missing: " + ", ".join(missing_a39))
@@ -69,7 +74,7 @@ jobs:
               raise SystemExit("Missing canonical decision sections: " + ", ".join(missing))
 
           required_technical = [
-              "Канонический журнал архитектурных решений содержит A-00–A-39",
+              "Канонический журнал архитектурных решений содержит A-00–A-40",
               "## 18. Нормативность и согласованность документации",
               "## 19. Краткая история решений",
               "A-35 — формальная модель угроз",
@@ -77,6 +82,7 @@ jobs:
               "A-37 — единая детерминированная матрица приоритетов",
               "A-38 — фиксированный глобальный порядок критериев",
               "A-39 — версионная актуальность решений",
+              "A-40 — одноразовые криптографически защищённые квитанции",
           ]
           required_a38_technical = [
               "### A-38. Точная семантика приоритетов",
@@ -89,6 +95,16 @@ jobs:
               "decision receipt",
               "A-39 — версионная актуальность решений",
           ]
+          required_a40_technical = [
+              "### A-40. Защита квитанций решений от повторного и подменённого исполнения",
+              "одноразовая",
+              "долговременным реестром операций",
+              "A-40 — одноразовые криптографически защищённые квитанции",
+          ]
+          missing_a40_technical = [item for item in required_a40_technical if item not in technical]
+          if missing_a40_technical:
+              raise SystemExit("Technical specification is missing A-40 requirements: " + ", ".join(missing_a40_technical))
+
           missing_a39_technical = [item for item in required_a39_technical if item not in technical]
           if missing_a39_technical:
               raise SystemExit("Technical specification is missing A-39 requirements: " + ", ".join(missing_a39_technical))

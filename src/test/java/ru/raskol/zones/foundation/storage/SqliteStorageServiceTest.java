@@ -103,6 +103,36 @@ class SqliteStorageServiceTest {
     }
 
     @Test
+    void closeWaitsForTransactionsAcceptedBeforeShutdown() throws Exception {
+        Path database = temporaryDirectory.resolve("shutdown-drain.db");
+        var storage = new SqliteStorageService(database);
+
+        var transaction = storage.transaction(connection -> {
+            try (var statement = connection.prepareStatement("""
+                    INSERT INTO plugin_metadata(metadata_key, metadata_value, updated_at)
+                    VALUES ('shutdown-check', 'persisted', '2026-11-12T00:00:00Z')
+                    """)) {
+                statement.executeUpdate();
+            }
+            return null;
+        });
+        var closing = storage.closeAsync();
+
+        transaction.toCompletableFuture().get();
+        closing.toCompletableFuture().get();
+
+        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database);
+             var statement = connection.createStatement();
+             var result = statement.executeQuery("""
+                     SELECT metadata_value FROM plugin_metadata
+                     WHERE metadata_key = 'shutdown-check'
+                     """)) {
+            assertTrue(result.next());
+            assertEquals("persisted", result.getString(1));
+        }
+    }
+
+    @Test
     void refusesDatabaseWithNewerSchemaVersion() throws Exception {
         Path database = temporaryDirectory.resolve("newer.db");
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database);

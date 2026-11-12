@@ -38,8 +38,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          from pathlib import Path
-
           decisions = Path("docs/ARCHITECTURE_DECISIONS.md").read_text(encoding="utf-8")
           technical = Path("docs/TECHNICAL_SPECIFICATION.md").read_text(encoding="utf-8")
           readme = Path("README.md").read_text(encoding="utf-8")

@@ -7,6 +7,7 @@ public final class TerritoryException extends RuntimeException {
         PARENT_NOT_FOUND,
         PARENT_WORLD_MISMATCH,
         PARENT_ARCHIVED,
+        ACTIVE_CHILDREN,
         HIERARCHY_CYCLE,
         TYPE_NOT_FOUND,
         VERSION_CONFLICT,

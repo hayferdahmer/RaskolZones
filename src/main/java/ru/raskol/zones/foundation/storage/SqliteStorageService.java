@@ -55,16 +55,14 @@ public final class SqliteStorageService implements StorageService {
             return CompletableFuture.failedFuture(new IllegalStateException("Хранилище уже закрыто"));
         }
 
-        CompletableFuture<T> operation = initialize()
+        CompletableFuture<T> operation = pendingOperations
+                .thenCompose(ignored -> initialize())
                 .thenCompose(ignored -> CompletableFuture.supplyAsync(
                         () -> executeTransaction(work),
                         executor
                 ))
                 .toCompletableFuture();
-        pendingOperations = CompletableFuture.allOf(
-                pendingOperations,
-                operation.handle((ignored, failure) -> null)
-        );
+        pendingOperations = operation.handle((ignored, failure) -> null);
         return operation;
     }
 

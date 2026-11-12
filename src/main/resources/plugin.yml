@@ -1,0 +1,6 @@
+name: RaskolZones
+version: '${project.version}'
+main: ru.raskol.zones.RaskolZonesPlugin
+api-version: '26.2'
+description: География, территории и территориальные правила сервера RASKOL.
+load: POSTWORLD

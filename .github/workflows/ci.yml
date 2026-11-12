@@ -300,8 +300,17 @@ jobs:
           server_pid=$!
           cleanup() {
             if kill -0 "$server_pid" 2>/dev/null; then
-              kill -INT "$server_pid" || true
-              wait "$server_pid" || true
+              kill -TERM "$server_pid" 2>/dev/null || true
+              for attempt in $(seq 1 20); do
+                if ! kill -0 "$server_pid" 2>/dev/null; then
+                  break
+                fi
+                sleep 1
+              done
+              if kill -0 "$server_pid" 2>/dev/null; then
+                kill -KILL "$server_pid" 2>/dev/null || true
+              fi
+              wait "$server_pid" 2>/dev/null || true
             fi
           }
           trap cleanup EXIT

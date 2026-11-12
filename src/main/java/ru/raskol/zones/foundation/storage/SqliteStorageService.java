@@ -25,6 +25,7 @@ public final class SqliteStorageService implements StorageService {
     private final AtomicBoolean closed = new AtomicBoolean();
     private CompletableFuture<Void> initialization;
     private CompletableFuture<Void> pendingOperations = CompletableFuture.completedFuture(null);
+    private CompletableFuture<Void> closing;
 
     public SqliteStorageService(Path databasePath) {
         this.databasePath = Objects.requireNonNull(databasePath, "databasePath")
@@ -200,19 +201,23 @@ public final class SqliteStorageService implements StorageService {
     }
 
     @Override
-    public CompletionStage<Void> closeAsync() {
-        CompletableFuture<Void> completion = new CompletableFuture<>();
+    public synchronized CompletionStage<Void> closeAsync() {
+        if (closing != null) {
+            return closing;
+        }
+
+        closing = new CompletableFuture<>();
         Thread shutdownThread = new Thread(() -> {
             try {
                 close();
-                completion.complete(null);
+                closing.complete(null);
             } catch (RuntimeException exception) {
-                completion.completeExceptionally(exception);
+                closing.completeExceptionally(exception);
             }
         }, "RaskolZones-SQLite-Shutdown");
         shutdownThread.setDaemon(false);
         shutdownThread.start();
-        return completion;
+        return closing;
     }
 
     @Override

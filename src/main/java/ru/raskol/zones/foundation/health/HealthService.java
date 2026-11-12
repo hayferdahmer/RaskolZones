@@ -1,9 +1,20 @@
 package ru.raskol.zones.foundation.health;
 
 import java.time.Instant;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class HealthService {
+
+    private static final Map<HealthStatus, EnumSet<HealthStatus>> ALLOWED_TRANSITIONS = Map.of(
+            HealthStatus.STARTING, EnumSet.of(HealthStatus.READY, HealthStatus.FAILED),
+            HealthStatus.READY, EnumSet.of(HealthStatus.DEGRADED, HealthStatus.STOPPING, HealthStatus.FAILED),
+            HealthStatus.DEGRADED, EnumSet.of(HealthStatus.READY, HealthStatus.STOPPING, HealthStatus.FAILED),
+            HealthStatus.STOPPING, EnumSet.of(HealthStatus.STOPPED, HealthStatus.FAILED),
+            HealthStatus.STOPPED, EnumSet.noneOf(HealthStatus.class),
+            HealthStatus.FAILED, EnumSet.noneOf(HealthStatus.class)
+    );
 
     private final AtomicReference<HealthSnapshot> current = new AtomicReference<>(
             new HealthSnapshot(HealthStatus.STARTING, Instant.now(), "Инициализация")
@@ -13,31 +24,39 @@ public final class HealthService {
         return current.get();
     }
 
-    public void markStarting() {
-        update(HealthStatus.STARTING, "Запуск");
-    }
-
     public void markReady() {
-        update(HealthStatus.READY, "Компоненты фундамента готовы");
+        transition(HealthStatus.READY, "Компоненты фундамента готовы");
     }
 
     public void markDegraded(String detail) {
-        update(HealthStatus.DEGRADED, detail);
+        transition(HealthStatus.DEGRADED, detail);
     }
 
     public void markStopping() {
-        update(HealthStatus.STOPPING, "Остановка");
+        transition(HealthStatus.STOPPING, "Остановка");
     }
 
     public void markStopped() {
-        update(HealthStatus.STOPPED, "Остановлено");
+        transition(HealthStatus.STOPPED, "Остановлено");
     }
 
     public void markFailed(String detail) {
-        update(HealthStatus.FAILED, detail);
+        transition(HealthStatus.FAILED, detail);
     }
 
-    private void update(HealthStatus status, String detail) {
-        current.set(new HealthSnapshot(status, Instant.now(), detail));
+    private void transition(HealthStatus target, String detail) {
+        while (true) {
+            HealthSnapshot previous = current.get();
+            if (!ALLOWED_TRANSITIONS.get(previous.status()).contains(target)) {
+                throw new IllegalStateException(
+                        "Недопустимый переход состояния: " + previous.status() + " -> " + target
+                );
+            }
+
+            HealthSnapshot next = new HealthSnapshot(target, Instant.now(), detail);
+            if (current.compareAndSet(previous, next)) {
+                return;
+            }
+        }
     }
 }

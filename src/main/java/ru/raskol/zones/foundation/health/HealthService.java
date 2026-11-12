@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class HealthService {
 
     private static final Map<HealthStatus, EnumSet<HealthStatus>> ALLOWED_TRANSITIONS = Map.of(
-            HealthStatus.STARTING, EnumSet.of(HealthStatus.READY, HealthStatus.FAILED),
+            HealthStatus.STARTING, EnumSet.of(HealthStatus.READY, HealthStatus.STOPPING, HealthStatus.FAILED),
             HealthStatus.READY, EnumSet.of(HealthStatus.DEGRADED, HealthStatus.STOPPING, HealthStatus.FAILED),
             HealthStatus.DEGRADED, EnumSet.of(HealthStatus.READY, HealthStatus.STOPPING, HealthStatus.FAILED),
             HealthStatus.STOPPING, EnumSet.of(HealthStatus.STOPPED, HealthStatus.FAILED),

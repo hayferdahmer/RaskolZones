@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class SqliteStorageService implements StorageService {
-    private static final int CURRENT_SCHEMA_VERSION = 2;
+    private static final int CURRENT_SCHEMA_VERSION = 3;
     private static final int BUSY_TIMEOUT_MILLIS = 5_000;
 
     private final Path databasePath;
@@ -98,6 +98,10 @@ public final class SqliteStorageService implements StorageService {
             }
             if (currentVersion < 2) {
                 applyWorldRegistryMigration(connection);
+                currentVersion = 2;
+            }
+            if (currentVersion < 3) {
+                applyTerritoryCoreMigration(connection);
             }
         } catch (SQLException exception) {
             throw new StorageException("Не удалось инициализировать SQLite-хранилище", exception);
@@ -128,6 +132,79 @@ public final class SqliteStorageService implements StorageService {
                 insert.executeUpdate();
             }
             statement.execute("PRAGMA user_version = 2");
+            connection.commit();
+        } catch (SQLException exception) {
+            connection.rollback();
+            throw exception;
+        } finally {
+            connection.setAutoCommit(true);
+        }
+    }
+
+    private void applyTerritoryCoreMigration(Connection connection) throws SQLException {
+        connection.setAutoCommit(false);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE territories (
+                        territory_uuid TEXT PRIMARY KEY,
+                        world_uuid TEXT NOT NULL,
+                        parent_uuid TEXT,
+                        type_id TEXT NOT NULL CHECK (length(trim(type_id)) BETWEEN 1 AND 64),
+                        name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 128),
+                        weight INTEGER NOT NULL,
+                        lifecycle_status TEXT NOT NULL CHECK (lifecycle_status IN ('ACTIVE', 'ARCHIVED')),
+                        version INTEGER NOT NULL CHECK (version >= 0),
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        CHECK (parent_uuid IS NULL OR parent_uuid <> territory_uuid),
+                        FOREIGN KEY (world_uuid) REFERENCES world_registry(world_uuid) ON DELETE RESTRICT,
+                        FOREIGN KEY (parent_uuid) REFERENCES territories(territory_uuid) ON DELETE RESTRICT
+                    )
+                    """);
+            statement.execute("""
+                    CREATE INDEX idx_territories_world
+                    ON territories(world_uuid, lifecycle_status, name COLLATE NOCASE)
+                    """);
+            statement.execute("""
+                    CREATE INDEX idx_territories_parent
+                    ON territories(parent_uuid)
+                    """);
+            statement.execute("""
+                    CREATE TABLE territory_geometry (
+                        territory_uuid TEXT PRIMARY KEY,
+                        shape_type TEXT NOT NULL CHECK (shape_type IN ('CUBOID', 'POLYGON')),
+                        min_x REAL NOT NULL,
+                        max_x REAL NOT NULL,
+                        min_z REAL NOT NULL,
+                        max_z REAL NOT NULL,
+                        min_y INTEGER NOT NULL,
+                        max_y INTEGER NOT NULL,
+                        CHECK (min_x <= max_x),
+                        CHECK (min_z <= max_z),
+                        CHECK (min_y <= max_y),
+                        FOREIGN KEY (territory_uuid) REFERENCES territories(territory_uuid)
+                            ON DELETE CASCADE
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE territory_vertices (
+                        territory_uuid TEXT NOT NULL,
+                        vertex_index INTEGER NOT NULL CHECK (vertex_index >= 0),
+                        x REAL NOT NULL,
+                        z REAL NOT NULL,
+                        PRIMARY KEY (territory_uuid, vertex_index),
+                        FOREIGN KEY (territory_uuid) REFERENCES territory_geometry(territory_uuid)
+                            ON DELETE CASCADE
+                    )
+                    """);
+            try (var insert = connection.prepareStatement(
+                    "INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)")) {
+                insert.setInt(1, 3);
+                insert.setString(2, "territory_core");
+                insert.setString(3, Instant.now().toString());
+                insert.executeUpdate();
+            }
+            statement.execute("PRAGMA user_version = 3");
             connection.commit();
         } catch (SQLException exception) {
             connection.rollback();

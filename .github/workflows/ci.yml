@@ -238,5 +238,75 @@ jobs:
           print(f"Packaged plugin verified: {jar} ({jar.stat().st_size} bytes)")
           PY
 
+      - name: Paper 26.2 runtime smoke test
+        shell: bash
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          mkdir -p .paper-smoke/plugins
+          cp target/raskol-zones-*.jar .paper-smoke/plugins/RaskolZones.jar
+          printf 'eula=true\n' > .paper-smoke/eula.txt
+          cat > .paper-smoke/server.properties <<'PROPERTIES'
+          server-port=25575
+          online-mode=false
+          spawn-protection=0
+          max-players=1
+          level-name=smoke-world
+          PROPERTIES
+
+          python3 - <<'PY'
+          import json
+          import urllib.request
+
+          base = "https://api.papermc.io/v2/projects/paper/versions/26.2"
+          with urllib.request.urlopen(base + "/builds", timeout=30) as response:
+              builds = json.load(response)["builds"]
+          stable = [item for item in builds if item.get("channel") == "STABLE"]
+          selected = (stable or builds)[-1]
+          build = selected["build"]
+          with urllib.request.urlopen(f"{base}/builds/{build}", timeout=30) as response:
+              metadata = json.load(response)
+          filename = metadata["downloads"]["application"]["name"]
+          download = f"{base}/builds/{build}/downloads/{filename}"
+          urllib.request.urlretrieve(download, ".paper-smoke/paper.jar")
+          print(f"Downloaded Paper 26.2 build {build}: {filename}")
+          PY
+
+          cd .paper-smoke
+          java -Xms512M -Xmx1G -jar paper.jar --nogui > server.log 2>&1 &
+          server_pid=$!
+          cleanup() {
+            if kill -0 "$server_pid" 2>/dev/null; then
+              kill -INT "$server_pid" || true
+              wait "$server_pid" || true
+            fi
+          }
+          trap cleanup EXIT
+
+          started=false
+          for attempt in $(seq 1 180); do
+            if grep -Fq "Done (" server.log; then
+              started=true
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat server.log
+              echo "Paper server exited before startup completed"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$started" != true ]; then
+            cat server.log
+            echo "Paper server startup timed out"
+            exit 1
+          fi
+
+          grep -F "Enabling RaskolZones v" server.log
+          grep -F "RaskolZones foundation готов. Состояние: READY" server.log
+          test -s plugins/RaskolZones/config.yml
+          echo "Paper 26.2 runtime smoke test passed."
+
       - name: Require Maven build descriptor
         run: test -s pom.xml

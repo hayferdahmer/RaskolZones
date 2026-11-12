@@ -50,6 +50,27 @@ class FoundationRuntimeStorageTest {
     }
 
     @Test
+    void doesNotBecomeReadyUntilRequiredStartupWorkCompletes() throws Exception {
+        var health = new HealthService();
+        var requiredWork = new CompletableFuture<Void>();
+        var runtime = new FoundationRuntime(
+                PluginSettings::defaults,
+                health,
+                Logger.getLogger("RaskolZonesStorageTest"),
+                new SqliteStorageService(temporaryDirectory.resolve("required-work.db"))
+        );
+
+        var startup = runtime.startAsync(requiredWork);
+        assertEquals(HealthStatus.STARTING, health.snapshot().status());
+
+        requiredWork.complete(null);
+        startup.toCompletableFuture().get();
+
+        assertEquals(HealthStatus.READY, health.snapshot().status());
+        runtime.stopAsync().toCompletableFuture().get();
+    }
+
+    @Test
     void shutdownDuringInitializationIsSafeAndIdempotent() throws Exception {
         var initialization = new CompletableFuture<Void>();
         var closing = new CompletableFuture<Void>();

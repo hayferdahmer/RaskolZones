@@ -367,6 +367,7 @@ jobs:
             exit 1
           fi
 
+          grep -F "Пространственные индексы готовы для миров:" server.log
           grep -F "RaskolZones готов. Состояние: READY" server.log
           test -s plugins/RaskolZones/config.yml
           test -s plugins/RaskolZones/raskolzones.db

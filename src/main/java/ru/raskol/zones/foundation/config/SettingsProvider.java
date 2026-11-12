@@ -4,4 +4,8 @@ package ru.raskol.zones.foundation.config;
 public interface SettingsProvider {
 
     PluginSettings load();
+
+    default PluginSettings reload() {
+        return load();
+    }
 }

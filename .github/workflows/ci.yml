@@ -52,19 +52,35 @@ jobs:
               "## A-35. Модель угроз и границы доверия",
               "## A-36. Документация и нормативные источники",
               "## A-37. Детерминированное разрешение территориальных правил",
+              "## A-38. Точная семантика приоритетов",
           ]
+          required_a38 = [f"### A38.{number}." for number in range(1, 9)]
+          missing_a38 = [heading for heading in required_a38 if heading not in decisions]
+          if missing_a38:
+              raise SystemExit("Canonical A-38 decision subsections missing: " + ", ".join(missing_a38))
+
           missing = [heading for heading in required_decisions if heading not in decisions]
           if missing:
               raise SystemExit("Missing canonical decision sections: " + ", ".join(missing))
 
           required_technical = [
-              "канонический журнал архитектурных решений содержит A-00–A-37",
+              "канонический журнал архитектурных решений содержит A-00–A-38",
               "## 18. Нормативность и согласованность документации",
               "## 19. Краткая история решений",
               "A-35 — формальная модель угроз",
               "A-36 — канонический журнал решений",
               "A-37 — единая детерминированная матрица приоритетов",
+              "A-38 — фиксированный глобальный порядок критериев",
           ]
+          required_a38_technical = [
+              "### A-38. Точная семантика приоритетов",
+              "обязательная безопасность → иерархия территории → числовой вес → специфичность правила",
+              "A-38 — фиксированный глобальный порядок критериев",
+          ]
+          missing_a38_technical = [item for item in required_a38_technical if item not in technical]
+          if missing_a38_technical:
+              raise SystemExit("Technical specification is missing A-38 requirements: " + ", ".join(missing_a38_technical))
+
           missing = [item for item in required_technical if item not in technical]
           if missing:
               raise SystemExit("Technical specification is out of sync: " + ", ".join(missing))

@@ -98,6 +98,11 @@ public final class SqliteTerritoryRepository implements TerritoryRepository {
 
         return storage.transaction(connection -> {
             validateWorldAndParent(connection, territory.worldId(), territory.parentId(), territory.id());
+            if (territory.status() == TerritoryStatus.ARCHIVED
+                    && hasActiveChildren(connection, territory.id())) {
+                throw new TerritoryException(TerritoryException.Code.ACTIVE_CHILDREN,
+                        "Нельзя архивировать территорию, пока у неё есть активные дочерние территории");
+            }
             int changed;
             try (var statement = connection.prepareStatement("""
                     UPDATE territories
@@ -135,6 +140,19 @@ public final class SqliteTerritoryRepository implements TerritoryRepository {
             writeGeometry(connection, territory.id(), territory.geometry());
             return territory;
         });
+    }
+
+    private static boolean hasActiveChildren(Connection connection, UUID territoryId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT 1 FROM territories
+                WHERE parent_uuid = ? AND lifecycle_status = 'ACTIVE'
+                LIMIT 1
+                """)) {
+            statement.setString(1, territoryId.toString());
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
+        }
     }
 
     private static Optional<Territory> find(Connection connection, UUID territoryId) throws SQLException {

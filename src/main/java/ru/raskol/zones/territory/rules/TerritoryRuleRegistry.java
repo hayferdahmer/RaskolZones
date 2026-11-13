@@ -28,6 +28,23 @@ public final class TerritoryRuleRegistry {
         return repository.create(definition);
     }
 
+    public CompletionStage<TerritoryRuleDefinition> register(
+            String ruleId,
+            UUID territoryId,
+            String actionKey,
+            RuleEffect effect,
+            RuleSafetyClass safetyClass,
+            RuleSpecificity specificity,
+            String sourceId,
+            java.util.List<RuleCondition> conditions
+    ) {
+        TerritoryRuleDefinition definition = new TerritoryRuleDefinition(
+                ruleId, territoryId, actionKey, effect, safetyClass, specificity,
+                sourceId, true, 0, Instant.now(), conditions
+        );
+        return repository.create(definition);
+    }
+
     public CompletionStage<TerritoryRuleDefinition> update(
             TerritoryRuleDefinition current,
             RuleEffect effect,

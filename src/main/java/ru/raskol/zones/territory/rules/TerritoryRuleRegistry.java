@@ -43,7 +43,7 @@ public final class TerritoryRuleRegistry {
         TerritoryRuleDefinition updated = new TerritoryRuleDefinition(
                 current.ruleId(), current.territoryId(), current.actionKey(),
                 effect, safetyClass, specificity, current.sourceId(), enabled,
-                expectedVersion + 1, Instant.now()
+                expectedVersion + 1, Instant.now(), current.conditions()
         );
         return repository.update(updated, expectedVersion);
     }

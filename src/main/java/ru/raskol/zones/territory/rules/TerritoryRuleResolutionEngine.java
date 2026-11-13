@@ -68,7 +68,7 @@ public final class TerritoryRuleResolutionEngine {
                 .toList();
         if (!safetyRestrictions.isEmpty()) {
             return resolved(safetyRestrictions.getFirst(), candidates,
-                    RuleDecisionReason.MANDATORY_SAFETY_RESTRICTION, sourceLevels);
+                    RuleDecisionReason.MANDATORY_SAFETY_RESTRICTION, sourceLevels, territories);
         }
 
         List<TerritoryRuleCandidate> hierarchyWinners = candidates.stream()
@@ -92,7 +92,7 @@ public final class TerritoryRuleResolutionEngine {
 
         TerritoryRuleCandidate winner = hierarchyWinners.stream().min(comparator).orElseThrow();
         RuleDecisionReason reason = winnerReason(winner, candidates, territories, sourceLevels);
-        return resolved(winner, candidates, reason, sourceLevels);
+        return resolved(winner, candidates, reason, sourceLevels, territories);
     }
 
     private static Map<UUID, Territory> territoryMap(Collection<Territory> snapshot) {
@@ -194,7 +194,8 @@ public final class TerritoryRuleResolutionEngine {
             TerritoryRuleCandidate winner,
             Collection<TerritoryRuleCandidate> candidates,
             RuleDecisionReason reason,
-            Map<TerritoryRuleCandidate, Integer> sourceLevels
+            Map<TerritoryRuleCandidate, Integer> sourceLevels,
+            Map<UUID, Territory> territories
     ) {
         List<RuleDecisionTraceEntry> trace = new ArrayList<>();
         candidates.stream().sorted(STABLE_ID_ORDER).forEach(candidate -> trace.add(
@@ -204,7 +205,7 @@ public final class TerritoryRuleResolutionEngine {
                         candidate.sourceId(),
                         candidate.effect(),
                         candidate.equals(winner),
-                        candidate.equals(winner) ? reason : loserReason(winner, candidate, reason, sourceLevels)
+                        candidate.equals(winner) ? reason : loserReason(winner, candidate, sourceLevels, territories)
                 )
         ));
         return new RuleResolutionResult(
@@ -218,26 +219,29 @@ public final class TerritoryRuleResolutionEngine {
     private static RuleDecisionReason loserReason(
             TerritoryRuleCandidate winner,
             TerritoryRuleCandidate loser,
-            RuleDecisionReason winnerReason,
-            Map<TerritoryRuleCandidate, Integer> sourceLevels
+            Map<TerritoryRuleCandidate, Integer> sourceLevels,
+            Map<UUID, Territory> territories
     ) {
         if (winner.safetyClass() == RuleSafetyClass.MANDATORY_RESTRICTION) {
             return RuleDecisionReason.MANDATORY_SAFETY_RESTRICTION;
         }
-        if (winner.territory().id().equals(loser.territory().id())) {
-            if (!winner.specificity().equals(loser.specificity())
-                    && winner.territory().weight() == loser.territory().weight()) {
-                return RuleDecisionReason.HIGHER_SPECIFICITY;
-            }
-            if (!sourceLevels.get(winner).equals(sourceLevels.get(loser))) {
-                return RuleDecisionReason.HIGHER_SOURCE_AUTHORITY;
-            }
-            if (winner.effect() != loser.effect()) {
-                return RuleDecisionReason.DENY_ON_TIE;
-            }
-            return RuleDecisionReason.STABLE_ID_TIE_BREAKER;
+        if (!winner.territory().id().equals(loser.territory().id())
+                && isAncestor(loser.territory().id(), winner.territory().id(), territories)) {
+            return RuleDecisionReason.DESCENDANT_TERRITORY;
         }
-        return winnerReason;
+        if (winner.territory().weight() != loser.territory().weight()) {
+            return RuleDecisionReason.HIGHER_WEIGHT;
+        }
+        if (winner.specificity().compareTo(loser.specificity()) != 0) {
+            return RuleDecisionReason.HIGHER_SPECIFICITY;
+        }
+        if (!sourceLevels.get(winner).equals(sourceLevels.get(loser))) {
+            return RuleDecisionReason.HIGHER_SOURCE_AUTHORITY;
+        }
+        if (winner.effect() != loser.effect()) {
+            return RuleDecisionReason.DENY_ON_TIE;
+        }
+        return RuleDecisionReason.STABLE_ID_TIE_BREAKER;
     }
 
     private static List<RuleDecisionTraceEntry> traceFailure(

@@ -11,7 +11,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.PluginManager;
 import ru.raskol.zones.territory.transition.event.TerritoryTransitionEvent;
 
@@ -43,20 +42,25 @@ public final class TerritoryTransitionListener implements Listener {
     public void onMove(PlayerMoveEvent event) {
         Location from = event.getFrom();
         Location to = event.getTo();
-        if (to == null || sameBlock(from, to)) {
+        if (to == null || samePosition(from, to)) {
             return;
         }
-
         Player player = event.getPlayer();
-        TransitionReason reason = TransitionReason.MOVEMENT;
-        if (event instanceof PlayerTeleportEvent teleport) {
-            reason = switch (teleport.getCause()) {
-                case NETHER_PORTAL, END_PORTAL -> TransitionReason.PORTAL;
-                default -> TransitionReason.TELEPORT;
-            };
-        }
+        publish(engine.move(player.getUniqueId(), position(to), TransitionReason.MOVEMENT));
+    }
 
-        publish(engine.move(player.getUniqueId(), position(to), reason));
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent event) {
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (to == null || samePosition(from, to)) {
+            return;
+        }
+        TransitionReason reason = switch (event.getCause()) {
+            case NETHER_PORTAL, END_PORTAL -> TransitionReason.PORTAL;
+            default -> TransitionReason.TELEPORT;
+        };
+        publish(engine.move(event.getPlayer().getUniqueId(), position(to), reason));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -78,11 +82,11 @@ public final class TerritoryTransitionListener implements Listener {
         }
     }
 
-    private static boolean sameBlock(Location from, Location to) {
+    private static boolean samePosition(Location from, Location to) {
         return from.getWorld().getUID().equals(to.getWorld().getUID())
-                && from.getBlockX() == to.getBlockX()
-                && from.getBlockY() == to.getBlockY()
-                && from.getBlockZ() == to.getBlockZ();
+                && Double.compare(from.getX(), to.getX()) == 0
+                && Double.compare(from.getY(), to.getY()) == 0
+                && Double.compare(from.getZ(), to.getZ()) == 0;
     }
 
     private static PlayerPosition position(Location location) {

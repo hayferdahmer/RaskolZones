@@ -28,7 +28,7 @@ class SqliteStorageServiceTest {
                     return result.getInt(1);
                 }
             }).toCompletableFuture().get();
-            assertEquals(5, version);
+            assertEquals(6, version);
         }
     }
 
@@ -113,6 +113,25 @@ class SqliteStorageServiceTest {
                 }
             }).toCompletableFuture().get();
             assertEquals(1, profileTables);
+
+            int conditionColumns = storage.transaction(connection -> {
+                int ruleColumn = 0;
+                int profileColumn = 0;
+                try (var statement = connection.createStatement();
+                     var result = statement.executeQuery("PRAGMA table_info(territory_rules)")) {
+                    while (result.next()) {
+                        if ("conditions".equals(result.getString("name"))) ruleColumn++;
+                    }
+                }
+                try (var statement = connection.createStatement();
+                     var result = statement.executeQuery("PRAGMA table_info(territory_rule_profiles)")) {
+                    while (result.next()) {
+                        if ("conditions".equals(result.getString("name"))) profileColumn++;
+                    }
+                }
+                return ruleColumn + profileColumn;
+            }).toCompletableFuture().get();
+            assertEquals(2, conditionColumns);
         }
     }
 

@@ -28,8 +28,8 @@ public final class SqliteTerritoryRuleRepository implements TerritoryRuleReposit
             try (var statement = connection.prepareStatement("""
                     INSERT INTO territory_rules(
                         rule_id, territory_uuid, action_key, effect, safety_class,
-                        specificity_rank, source_id, enabled, version, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        specificity_rank, source_id, enabled, version, updated_at, conditions
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """)) {
                 bind(statement, rule);
                 statement.executeUpdate();
@@ -53,7 +53,7 @@ public final class SqliteTerritoryRuleRepository implements TerritoryRuleReposit
         return storage.transaction(connection -> {
             List<TerritoryRuleDefinition> rules = new ArrayList<>();
             String sql = "SELECT rule_id, territory_uuid, action_key, effect, safety_class, "
-                    + "specificity_rank, source_id, enabled, version, updated_at "
+                    + "specificity_rank, source_id, enabled, version, updated_at, conditions "
                     + "FROM territory_rules WHERE enabled = 1 AND action_key = ? "
                     + "AND territory_uuid IN (" + placeholders + ") "
                     + "ORDER BY rule_id, territory_uuid";
@@ -86,7 +86,7 @@ public final class SqliteTerritoryRuleRepository implements TerritoryRuleReposit
             try (var statement = connection.prepareStatement("""
                     UPDATE territory_rules
                     SET territory_uuid = ?, action_key = ?, effect = ?, safety_class = ?,
-                        specificity_rank = ?, source_id = ?, enabled = ?, version = ?, updated_at = ?
+                        specificity_rank = ?, source_id = ?, enabled = ?, version = ?, updated_at = ?, conditions = ?
                     WHERE rule_id = ? AND version = ?
                     """)) {
                 statement.setString(1, rule.territoryId().toString());
@@ -98,8 +98,9 @@ public final class SqliteTerritoryRuleRepository implements TerritoryRuleReposit
                 statement.setInt(7, rule.enabled() ? 1 : 0);
                 statement.setLong(8, rule.version());
                 statement.setString(9, rule.updatedAt().toString());
-                statement.setString(10, rule.ruleId());
-                statement.setLong(11, expectedVersion);
+                statement.setString(10, RuleConditionCodec.encode(rule.conditions()));
+                statement.setString(11, rule.ruleId());
+                statement.setLong(12, expectedVersion);
                 changed = statement.executeUpdate();
             }
             if (changed != 1) {
@@ -121,6 +122,7 @@ public final class SqliteTerritoryRuleRepository implements TerritoryRuleReposit
         statement.setInt(8, rule.enabled() ? 1 : 0);
         statement.setLong(9, rule.version());
         statement.setString(10, rule.updatedAt().toString());
+        statement.setString(11, RuleConditionCodec.encode(rule.conditions()));
     }
 
     private static TerritoryRuleDefinition read(ResultSet result) throws SQLException {
@@ -134,7 +136,8 @@ public final class SqliteTerritoryRuleRepository implements TerritoryRuleReposit
                 result.getString("source_id"),
                 result.getInt("enabled") == 1,
                 result.getLong("version"),
-                Instant.parse(result.getString("updated_at"))
+                Instant.parse(result.getString("updated_at")),
+                RuleConditionCodec.decode(result.getString("conditions"))
         );
     }
 }

@@ -188,6 +188,7 @@ class TerritoryRulePipelineTest {
             var territoryRepository = new SqliteTerritoryRepository(storage);
             var spatial = new SpatialQueryService(territoryRepository);
             var ruleRepository = new SqliteTerritoryRuleRepository(storage);
+            var profileRepository = new SqliteTerritoryRuleProfileRepository(storage);
             var pipeline = new TerritoryRuleEvaluationPipeline(
                     spatial, ruleRepository, profileRepository,
                     new TerritoryRuleResolutionEngine(SourceAuthorityRegistry.coreOnly()),

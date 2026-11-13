@@ -15,6 +15,8 @@ import ru.raskol.zones.territory.SqliteTerritoryRepository;
 import ru.raskol.zones.territory.TerritoryService;
 import ru.raskol.zones.territory.type.TerritoryTypeRegistry;
 import ru.raskol.zones.territory.spatial.SpatialQueryService;
+import ru.raskol.zones.territory.transition.TerritoryTransitionEngine;
+import ru.raskol.zones.territory.transition.TerritoryTransitionListener;
 
 public final class RaskolZonesPlugin extends JavaPlugin {
 
@@ -23,6 +25,7 @@ public final class RaskolZonesPlugin extends JavaPlugin {
     private WorldRegistryService worldRegistry;
     private TerritoryService territoryService;
     private SpatialQueryService spatialQueryService;
+    private TerritoryTransitionListener transitionListener;
 
     @Override
     public void onEnable() {
@@ -32,6 +35,14 @@ public final class RaskolZonesPlugin extends JavaPlugin {
         worldRegistry = new WorldRegistryService(storage);
         var territoryRepository = new SqliteTerritoryRepository(storage);
         spatialQueryService = new SpatialQueryService(territoryRepository);
+        var transitionEngine = new TerritoryTransitionEngine(spatialQueryService);
+        transitionListener = new TerritoryTransitionListener(
+                transitionEngine,
+                getServer().getPluginManager(),
+                getLogger()
+        );
+        getServer().getPluginManager().registerEvents(transitionListener, this);
+
         territoryService = new TerritoryService(
                 territoryRepository,
                 TerritoryTypeRegistry.standard(),
@@ -102,6 +113,9 @@ public final class RaskolZonesPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (transitionListener != null) {
+            transitionListener.shutdown();
+        }
         if (runtime != null) {
             runtime.stopAsync().whenComplete((ignored, failure) -> {
                 if (failure != null) {

@@ -152,6 +152,74 @@ class TerritoryRulePipelineTest {
         }
     }
 
+    @Test
+    void contextualActorConditionIsAppliedBeforeResolution() throws Exception {
+        try (var storage = new SqliteStorageService(temporaryDirectory.resolve("context-match.db"))) {
+            storage.initialize().toCompletableFuture().get();
+            UUID worldId = registerWorld(storage);
+            UUID actorId = UUID.randomUUID();
+            var territoryRepository = new SqliteTerritoryRepository(storage);
+            Territory territory = createTerritory(territoryRepository, worldId, null, "region", "Region", 10);
+            var spatial = new SpatialQueryService(territoryRepository);
+            spatial.refreshWorld(worldId).toCompletableFuture().get();
+            var ruleRepository = new SqliteTerritoryRuleRepository(storage);
+            var profileRepository = new SqliteTerritoryRuleProfileRepository(storage);
+            ruleRepository.create(new TerritoryRuleDefinition(
+                    "actor.build.deny", territory.id(), "block.place",
+                    RuleEffect.DENY, RuleSafetyClass.ORDINARY,
+                    new RuleSpecificity(100), "raskol-core", true, 0, Instant.now(),
+                    java.util.List.of(new RuleCondition.ActorIs(actorId))
+            )).toCompletableFuture().get();
+
+            var pipeline = new TerritoryRuleEvaluationPipeline(
+                    spatial, ruleRepository, profileRepository,
+                    new TerritoryRuleResolutionEngine(SourceAuthorityRegistry.coreOnly()),
+                    territoryRepository
+            );
+            var context = new RuleEvaluationContext(
+                    worldId, "block.place", java.util.Optional.of(actorId),
+                    java.util.Optional.empty(), java.util.Optional.empty(),
+                    java.util.Optional.of("block-place"), 5, 64, 5
+            );
+            var result = pipeline.evaluate(context).toCompletableFuture().get();
+
+            assertEquals(RuleEvaluationStatus.RESOLVED, result.status());
+            assertEquals("actor.build.deny", result.resolution().orElseThrow()
+                    .winner().orElseThrow().ruleId());
+        }
+    }
+
+    @Test
+    void missingContextForStoredConditionFailsClosed() throws Exception {
+        try (var storage = new SqliteStorageService(temporaryDirectory.resolve("context-missing.db"))) {
+            storage.initialize().toCompletableFuture().get();
+            UUID worldId = registerWorld(storage);
+            UUID actorId = UUID.randomUUID();
+            var territoryRepository = new SqliteTerritoryRepository(storage);
+            Territory territory = createTerritory(territoryRepository, worldId, null, "region", "Region", 10);
+            var spatial = new SpatialQueryService(territoryRepository);
+            spatial.refreshWorld(worldId).toCompletableFuture().get();
+            var ruleRepository = new SqliteTerritoryRuleRepository(storage);
+            var profileRepository = new SqliteTerritoryRuleProfileRepository(storage);
+            ruleRepository.create(new TerritoryRuleDefinition(
+                    "actor.build.deny", territory.id(), "block.place",
+                    RuleEffect.DENY, RuleSafetyClass.ORDINARY,
+                    new RuleSpecificity(100), "raskol-core", true, 0, Instant.now(),
+                    java.util.List.of(new RuleCondition.ActorIs(actorId))
+            )).toCompletableFuture().get();
+
+            var pipeline = new TerritoryRuleEvaluationPipeline(
+                    spatial, ruleRepository, profileRepository,
+                    new TerritoryRuleResolutionEngine(SourceAuthorityRegistry.coreOnly()),
+                    territoryRepository
+            );
+            var result = pipeline.evaluate(worldId, 5, 64, 5, "block.place")
+                    .toCompletableFuture().get();
+
+            assertEquals(RuleEvaluationStatus.INDETERMINATE, result.status());
+        }
+    }
+
     private static UUID registerWorld(SqliteStorageService storage) throws Exception {
         UUID worldId = UUID.randomUUID();
         storage.transaction(connection -> {

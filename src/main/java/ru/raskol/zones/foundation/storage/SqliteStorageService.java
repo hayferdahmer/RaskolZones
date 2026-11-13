@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class SqliteStorageService implements StorageService {
-    private static final int CURRENT_SCHEMA_VERSION = 3;
+    private static final int CURRENT_SCHEMA_VERSION = 4;
     private static final int BUSY_TIMEOUT_MILLIS = 5_000;
 
     private final Path databasePath;
@@ -102,6 +102,10 @@ public final class SqliteStorageService implements StorageService {
             }
             if (currentVersion < 3) {
                 applyTerritoryCoreMigration(connection);
+                currentVersion = 3;
+            }
+            if (currentVersion < 4) {
+                applyTerritoryRuleRegistryMigration(connection);
             }
         } catch (SQLException exception) {
             throw new StorageException("Не удалось инициализировать SQLite-хранилище", exception);
@@ -205,6 +209,46 @@ public final class SqliteStorageService implements StorageService {
                 insert.executeUpdate();
             }
             statement.execute("PRAGMA user_version = 3");
+            connection.commit();
+        } catch (SQLException exception) {
+            connection.rollback();
+            throw exception;
+        } finally {
+            connection.setAutoCommit(true);
+        }
+    }
+
+    private void applyTerritoryRuleRegistryMigration(Connection connection) throws SQLException {
+        connection.setAutoCommit(false);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE territory_rules (
+                        rule_id TEXT PRIMARY KEY,
+                        territory_uuid TEXT NOT NULL,
+                        action_key TEXT NOT NULL CHECK (length(trim(action_key)) BETWEEN 1 AND 128),
+                        effect TEXT NOT NULL CHECK (effect IN ('ALLOW', 'DENY')),
+                        safety_class TEXT NOT NULL CHECK (safety_class IN ('ORDINARY', 'MANDATORY_RESTRICTION')),
+                        specificity_rank INTEGER NOT NULL CHECK (specificity_rank BETWEEN 0 AND 1000),
+                        source_id TEXT NOT NULL,
+                        enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+                        version INTEGER NOT NULL CHECK (version >= 0),
+                        updated_at TEXT NOT NULL,
+                        CHECK (safety_class <> 'MANDATORY_RESTRICTION' OR effect = 'DENY'),
+                        FOREIGN KEY (territory_uuid) REFERENCES territories(territory_uuid) ON DELETE RESTRICT
+                    )
+                    """);
+            statement.execute("""
+                    CREATE INDEX idx_territory_rules_lookup
+                    ON territory_rules(action_key, enabled, territory_uuid)
+                    """);
+            try (var insert = connection.prepareStatement(
+                    "INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)")) {
+                insert.setInt(1, 4);
+                insert.setString(2, "territory_rule_registry");
+                insert.setString(3, Instant.now().toString());
+                insert.executeUpdate();
+            }
+            statement.execute("PRAGMA user_version = 4");
             connection.commit();
         } catch (SQLException exception) {
             connection.rollback();

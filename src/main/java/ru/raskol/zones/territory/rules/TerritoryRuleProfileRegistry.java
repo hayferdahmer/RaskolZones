@@ -49,7 +49,7 @@ public final class TerritoryRuleProfileRegistry {
         TerritoryRuleProfileDefinition updated = new TerritoryRuleProfileDefinition(
                 current.profileId(), current.territoryTypeId(), current.actionKey(),
                 effect, safetyClass, specificity, current.sourceId(), enabled,
-                expectedVersion + 1, Instant.now()
+                expectedVersion + 1, Instant.now(), current.conditions()
         );
         return repository.update(updated, expectedVersion);
     }

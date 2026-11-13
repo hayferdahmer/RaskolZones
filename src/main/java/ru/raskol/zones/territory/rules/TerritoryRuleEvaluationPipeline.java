@@ -44,13 +44,19 @@ public final class TerritoryRuleEvaluationPipeline {
             double z,
             String actionKey
     ) {
-        Objects.requireNonNull(worldId, "worldId");
-        Objects.requireNonNull(actionKey, "actionKey");
-        String normalizedAction = actionKey.strip().toLowerCase(java.util.Locale.ROOT);
-        if (!normalizedAction.matches("[a-z0-9][a-z0-9._:-]{0,127}")) {
-            throw new IllegalArgumentException("Некорректный ключ действия");
-        }
+        return evaluate(new RuleEvaluationContext(
+                worldId, actionKey, java.util.Optional.empty(), java.util.Optional.empty(),
+                java.util.Optional.empty(), java.util.Optional.empty(), x, y, z
+        ));
+    }
 
+    public CompletionStage<RuleEvaluationResult> evaluate(RuleEvaluationContext context) {
+        Objects.requireNonNull(context, "context");
+        UUID worldId = context.worldId();
+        double x = context.x();
+        int y = context.y();
+        double z = context.z();
+        String normalizedAction = context.actionKey();
         SpatialQueryResult spatial = spatialQueries.query(worldId, x, y, z);
         if (!spatial.isReady()) {
             return CompletableFuture.completedFuture(new RuleEvaluationResult(
@@ -89,10 +95,21 @@ public final class TerritoryRuleEvaluationPipeline {
             return directRules.thenCombine(typeProfiles, (definitions, profileDefinitions) -> {
                 Set<UUID> directOverrides = new LinkedHashSet<>();
                 List<TerritoryRuleCandidate> candidates = new ArrayList<>();
+                RuleConditionEvaluator conditionEvaluator = new RuleConditionEvaluator();
+                boolean[] conditionIndeterminate = {false};
 
                 for (TerritoryRuleDefinition rule : definitions) {
                     Territory territory = scope.get(rule.territoryId());
                     if (territory == null) {
+                        continue;
+                    }
+                    ConditionEvaluationStatus conditionStatus =
+                            conditionEvaluator.evaluate(rule.conditions(), context);
+                    if (conditionStatus == ConditionEvaluationStatus.INDETERMINATE) {
+                        conditionIndeterminate[0] = true;
+                        continue;
+                    }
+                    if (conditionStatus == ConditionEvaluationStatus.NO_MATCH) {
                         continue;
                     }
                     directOverrides.add(territory.id());
@@ -114,6 +131,15 @@ public final class TerritoryRuleEvaluationPipeline {
                     if (profile == null) {
                         continue;
                     }
+                    ConditionEvaluationStatus conditionStatus =
+                            conditionEvaluator.evaluate(profile.conditions(), context);
+                    if (conditionStatus == ConditionEvaluationStatus.INDETERMINATE) {
+                        conditionIndeterminate[0] = true;
+                        continue;
+                    }
+                    if (conditionStatus == ConditionEvaluationStatus.NO_MATCH) {
+                        continue;
+                    }
                     candidates.add(new TerritoryRuleCandidate(
                             profile.profileId(), territory, profile.effect(), profile.safetyClass(),
                             profile.specificity(), profile.sourceId()
@@ -121,11 +147,13 @@ public final class TerritoryRuleEvaluationPipeline {
                 }
 
                 RuleResolutionResult result = resolver.resolve(worldId, candidates, snapshot);
-                RuleEvaluationStatus status = switch (result.status()) {
-                    case RESOLVED -> RuleEvaluationStatus.RESOLVED;
-                    case NO_CANDIDATES -> RuleEvaluationStatus.NO_APPLICABLE_RULE;
-                    case INDETERMINATE -> RuleEvaluationStatus.INDETERMINATE;
-                };
+                RuleEvaluationStatus status = conditionIndeterminate[0]
+                        ? RuleEvaluationStatus.INDETERMINATE
+                        : switch (result.status()) {
+                            case RESOLVED -> RuleEvaluationStatus.RESOLVED;
+                            case NO_CANDIDATES -> RuleEvaluationStatus.NO_APPLICABLE_RULE;
+                            case INDETERMINATE -> RuleEvaluationStatus.INDETERMINATE;
+                        };
                 return new RuleEvaluationResult(
                         worldId, normalizedAction, spatial.snapshotVersion(), status,
                         java.util.Optional.of(result)

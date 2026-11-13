@@ -52,14 +52,12 @@ public final class SqliteTerritoryRuleRepository implements TerritoryRuleReposit
         String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
         return storage.transaction(connection -> {
             List<TerritoryRuleDefinition> rules = new ArrayList<>();
-            try (var statement = connection.prepareStatement("""
-                    SELECT rule_id, territory_uuid, action_key, effect, safety_class,
-                           specificity_rank, source_id, enabled, version, updated_at
-                    FROM territory_rules
-                    WHERE enabled = 1 AND action_key = ?
-                      AND territory_uuid IN (""" + placeholders + """)
-                    ORDER BY rule_id, territory_uuid
-                    """)) {
+            String sql = "SELECT rule_id, territory_uuid, action_key, effect, safety_class, "
+                    + "specificity_rank, source_id, enabled, version, updated_at "
+                    + "FROM territory_rules WHERE enabled = 1 AND action_key = ? "
+                    + "AND territory_uuid IN (" + placeholders + ") "
+                    + "ORDER BY rule_id, territory_uuid";
+            try (var statement = connection.prepareStatement(sql)) {
                 statement.setString(1, actionKey.strip().toLowerCase(java.util.Locale.ROOT));
                 for (int index = 0; index < ids.size(); index++) {
                     statement.setString(index + 2, ids.get(index));

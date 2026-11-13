@@ -28,7 +28,7 @@ class SqliteStorageServiceTest {
                     return result.getInt(1);
                 }
             }).toCompletableFuture().get();
-            assertEquals(4, version);
+            assertEquals(5, version);
         }
     }
 
@@ -101,6 +101,18 @@ class SqliteStorageServiceTest {
                 }
             }).toCompletableFuture().get();
             assertEquals(1, ruleTables);
+
+            int profileTables = storage.transaction(connection -> {
+                try (var statement = connection.createStatement();
+                     var result = statement.executeQuery("""
+                             SELECT COUNT(*) FROM sqlite_master
+                             WHERE type = 'table' AND name = 'territory_rule_profiles'
+                             """)) {
+                    result.next();
+                    return result.getInt(1);
+                }
+            }).toCompletableFuture().get();
+            assertEquals(1, profileTables);
         }
     }
 

@@ -69,7 +69,7 @@ class RuleConditionEvaluatorTest {
                 Optional.empty(), Optional.empty(), 0, 64, 0
         );
 
-        var conditions = java.util.Collections.nCopies(
+        List<RuleCondition> conditions = java.util.Collections.nCopies(
                 RuleConditionEvaluator.MAX_CONDITIONS + 1,
                 new RuleCondition.YRange(0, 256)
         );

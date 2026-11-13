@@ -124,6 +124,12 @@ class TerritoryRulePipelineTest {
                     new RuleSpecificity(100), "raskol-core",
                     true, 0, Instant.now()
             )).toCompletableFuture().get();
+            profileRepository.create(new TerritoryRuleProfileDefinition(
+                    "arena.pvp.deny", "arena", "pvp.attack",
+                    RuleEffect.DENY, RuleSafetyClass.ORDINARY,
+                    new RuleSpecificity(100), "raskol-core",
+                    true, 0, Instant.now()
+            )).toCompletableFuture().get();
             ruleRepository.create(new TerritoryRuleDefinition(
                     "arena.pvp.allow", child.id(), "pvp.attack",
                     RuleEffect.ALLOW, RuleSafetyClass.ORDINARY,

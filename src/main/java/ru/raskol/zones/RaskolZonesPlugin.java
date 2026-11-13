@@ -46,7 +46,8 @@ public final class RaskolZonesPlugin extends JavaPlugin {
         spatialQueryService = new SpatialQueryService(territoryRepository);
         ruleEvaluationPipeline = new TerritoryRuleEvaluationPipeline(
                 spatialQueryService, ruleRepository,
-                new TerritoryRuleResolutionEngine(SourceAuthorityRegistry.coreOnly())
+                new TerritoryRuleResolutionEngine(SourceAuthorityRegistry.coreOnly()),
+                territoryRepository
         );
         var transitionEngine = new TerritoryTransitionEngine(spatialQueryService);
         transitionListener = new TerritoryTransitionListener(

@@ -14,8 +14,17 @@ public record TerritoryRuleProfileDefinition(
         String sourceId,
         boolean enabled,
         long version,
-        Instant updatedAt
+        Instant updatedAt,
+        java.util.List<RuleCondition> conditions
 ) {
+    public TerritoryRuleProfileDefinition(
+            String profileId, String territoryTypeId, String actionKey, RuleEffect effect,
+            RuleSafetyClass safetyClass, RuleSpecificity specificity, String sourceId,
+            boolean enabled, long version, Instant updatedAt
+    ) {
+        this(profileId, territoryTypeId, actionKey, effect, safetyClass, specificity,
+                sourceId, enabled, version, updatedAt, java.util.List.of());
+    }
     public TerritoryRuleProfileDefinition {
         Objects.requireNonNull(profileId, "profileId");
         Objects.requireNonNull(territoryTypeId, "territoryTypeId");
@@ -25,6 +34,10 @@ public record TerritoryRuleProfileDefinition(
         Objects.requireNonNull(specificity, "specificity");
         Objects.requireNonNull(sourceId, "sourceId");
         Objects.requireNonNull(updatedAt, "updatedAt");
+        conditions = java.util.List.copyOf(Objects.requireNonNull(conditions, "conditions"));
+        if (conditions.size() > RuleConditionEvaluator.MAX_CONDITIONS) {
+            throw new IllegalArgumentException("Превышен лимит условий");
+        }
         profileId = profileId.strip().toLowerCase(Locale.ROOT);
         territoryTypeId = territoryTypeId.strip().toLowerCase(Locale.ROOT);
         actionKey = actionKey.strip().toLowerCase(Locale.ROOT);

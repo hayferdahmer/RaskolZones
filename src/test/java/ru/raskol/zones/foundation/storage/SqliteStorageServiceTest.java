@@ -33,7 +33,7 @@ class SqliteStorageServiceTest {
     }
 
     @Test
-    void migratesExistingVersionOneDatabaseToTerritoryCore() throws Exception {
+    void migratesExistingVersionOneDatabaseToCurrentSchema() throws Exception {
         Path database = temporaryDirectory.resolve("legacy-v1.db");
         try (var connection = DriverManager.getConnection("jdbc:sqlite:" + database);
              var statement = connection.createStatement()) {
@@ -63,7 +63,7 @@ class SqliteStorageServiceTest {
                     return result.getInt(1);
                 }
             }).toCompletableFuture().get();
-            assertEquals(3, version);
+            assertEquals(5, version);
 
             int tableCount = storage.transaction(connection -> {
                 try (var statement = connection.createStatement();

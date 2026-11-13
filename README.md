@@ -12,9 +12,9 @@
 
 ## Статус проекта
 
-**Статус: разработка — foundation, Territory Core, Spatial Query Engine, Territory Transition Engine и первая итерация Rule Resolution Engine**
+**Статус: разработка — foundation, Territory Core, Spatial Query Engine, Territory Transition Engine, Rule Resolution Engine и первая итерация Rule Registry / Evaluation Pipeline**
 
-Реализованы bootstrap плагина, строгая конфигурация, health/lifecycle, асинхронное SQLite-хранилище, World Registry, Territory Core и первая итерация Spatial Query Engine: immutable snapshots по UUID мира, пространственная сетка 128 блоков, overflow для крупных территорий и точная проверка геометрии. Первая итерация Territory Transition Engine отслеживает вход/выход, проход через узкие области, телепортации и смену миров. Первая итерация Rule Resolution Engine реализует матрицу A-37/A-38, fail-closed для неизвестных источников и decision trace; прикладные PvP/PvE/build/interactions правила, команды, редактор и полноценная защита ещё не готовы. Зафиксированные в документации требования описывают целевую систему, а не уже реализованные функции.
+Реализованы bootstrap плагина, строгая конфигурация, health/lifecycle, асинхронное SQLite-хранилище, World Registry, Territory Core и первая итерация Spatial Query Engine: immutable snapshots по UUID мира, пространственная сетка 128 блоков, overflow для крупных территорий и точная проверка геометрии. Первая итерация Territory Transition Engine отслеживает вход/выход, проход через узкие области, телепортации и смену миров. Первая итерация Rule Resolution Engine реализует матрицу A-37/A-38, fail-closed для неизвестных источников и decision trace. Добавлены SQLite Rule Registry (schema v4) и асинхронный Evaluation Pipeline, связывающий spatial query, активные правила территории и resolver. Политики-наследники типов, контекстные условия, receipts A-39/A-40, Paper listeners для PvP/PvE/build/interactions, команды и редактор ещё не готовы. Зафиксированные в документации требования описывают целевую систему, а не уже реализованные функции.
 
 CI включает Maven-тесты, инспекцию JAR и запуск на Paper 26.2 с проверкой готовности плагина, инициализации пространственных индексов и миграций SQLite до схемы v3.
 

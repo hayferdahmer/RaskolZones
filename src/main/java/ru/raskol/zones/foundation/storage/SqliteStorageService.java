@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class SqliteStorageService implements StorageService {
-    private static final int CURRENT_SCHEMA_VERSION = 5;
+    private static final int CURRENT_SCHEMA_VERSION = 6;
     private static final int BUSY_TIMEOUT_MILLIS = 5_000;
 
     private final Path databasePath;
@@ -110,6 +110,10 @@ public final class SqliteStorageService implements StorageService {
             }
             if (currentVersion < 5) {
                 applyTerritoryRuleProfilesMigration(connection);
+                currentVersion = 5;
+            }
+            if (currentVersion < 6) {
+                applyContextualRuleConditionsMigration(connection);
             }
         } catch (SQLException exception) {
             throw new StorageException("Не удалось инициализировать SQLite-хранилище", exception);
@@ -293,6 +297,29 @@ public final class SqliteStorageService implements StorageService {
                 insert.executeUpdate();
             }
             statement.execute("PRAGMA user_version = 5");
+            connection.commit();
+        } catch (SQLException exception) {
+            connection.rollback();
+            throw exception;
+        } finally {
+            connection.setAutoCommit(true);
+        }
+    }
+
+
+    private void applyContextualRuleConditionsMigration(Connection connection) throws SQLException {
+        connection.setAutoCommit(false);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE territory_rules ADD COLUMN conditions TEXT NOT NULL DEFAULT 'v1'");
+            statement.execute("ALTER TABLE territory_rule_profiles ADD COLUMN conditions TEXT NOT NULL DEFAULT 'v1'");
+            try (var insert = connection.prepareStatement(
+                    "INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)")) {
+                insert.setInt(1, 6);
+                insert.setString(2, "contextual_rule_conditions");
+                insert.setString(3, Instant.now().toString());
+                insert.executeUpdate();
+            }
+            statement.execute("PRAGMA user_version = 6");
             connection.commit();
         } catch (SQLException exception) {
             connection.rollback();

@@ -27,8 +27,8 @@ public final class SqliteTerritoryRuleProfileRepository implements TerritoryRule
             try (var statement = connection.prepareStatement("""
                     INSERT INTO territory_rule_profiles(
                         profile_id, territory_type_id, action_key, effect, safety_class,
-                        specificity_rank, source_id, enabled, version, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        specificity_rank, source_id, enabled, version, updated_at, conditions
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """)) {
                 bind(statement, profile);
                 statement.executeUpdate();
@@ -52,7 +52,7 @@ public final class SqliteTerritoryRuleProfileRepository implements TerritoryRule
         return storage.transaction(connection -> {
             List<TerritoryRuleProfileDefinition> profiles = new ArrayList<>();
             String sql = "SELECT profile_id, territory_type_id, action_key, effect, safety_class, "
-                    + "specificity_rank, source_id, enabled, version, updated_at "
+                    + "specificity_rank, source_id, enabled, version, updated_at, conditions "
                     + "FROM territory_rule_profiles WHERE enabled = 1 AND action_key = ? "
                     + "AND territory_type_id IN (" + placeholders + ") "
                     + "ORDER BY profile_id, territory_type_id";
@@ -85,7 +85,7 @@ public final class SqliteTerritoryRuleProfileRepository implements TerritoryRule
             try (var statement = connection.prepareStatement("""
                     UPDATE territory_rule_profiles
                     SET territory_type_id = ?, action_key = ?, effect = ?, safety_class = ?,
-                        specificity_rank = ?, source_id = ?, enabled = ?, version = ?, updated_at = ?
+                        specificity_rank = ?, source_id = ?, enabled = ?, version = ?, updated_at = ?, conditions = ?
                     WHERE profile_id = ? AND version = ?
                     """)) {
                 statement.setString(1, profile.territoryTypeId());
@@ -97,8 +97,9 @@ public final class SqliteTerritoryRuleProfileRepository implements TerritoryRule
                 statement.setInt(7, profile.enabled() ? 1 : 0);
                 statement.setLong(8, profile.version());
                 statement.setString(9, profile.updatedAt().toString());
-                statement.setString(10, profile.profileId());
-                statement.setLong(11, expectedVersion);
+                statement.setString(10, RuleConditionCodec.encode(profile.conditions()));
+                statement.setString(11, profile.profileId());
+                statement.setLong(12, expectedVersion);
                 changed = statement.executeUpdate();
             }
             if (changed != 1) {
@@ -121,6 +122,7 @@ public final class SqliteTerritoryRuleProfileRepository implements TerritoryRule
         statement.setInt(8, profile.enabled() ? 1 : 0);
         statement.setLong(9, profile.version());
         statement.setString(10, profile.updatedAt().toString());
+        statement.setString(11, RuleConditionCodec.encode(profile.conditions()));
     }
 
     private static TerritoryRuleProfileDefinition read(ResultSet result) throws SQLException {
@@ -134,7 +136,8 @@ public final class SqliteTerritoryRuleProfileRepository implements TerritoryRule
                 result.getString("source_id"),
                 result.getInt("enabled") == 1,
                 result.getLong("version"),
-                Instant.parse(result.getString("updated_at"))
+                Instant.parse(result.getString("updated_at")),
+                RuleConditionCodec.decode(result.getString("conditions"))
         );
     }
 }

@@ -34,6 +34,24 @@ public final class TerritoryRuleProfileRegistry {
         return repository.create(profile);
     }
 
+    public CompletionStage<TerritoryRuleProfileDefinition> register(
+            String profileId,
+            String territoryTypeId,
+            String actionKey,
+            RuleEffect effect,
+            RuleSafetyClass safetyClass,
+            RuleSpecificity specificity,
+            String sourceId,
+            java.util.List<RuleCondition> conditions
+    ) {
+        territoryTypes.require(territoryTypeId);
+        TerritoryRuleProfileDefinition profile = new TerritoryRuleProfileDefinition(
+                profileId, territoryTypeId, actionKey, effect, safetyClass,
+                specificity, sourceId, true, 0, Instant.now(), conditions
+        );
+        return repository.create(profile);
+    }
+
     public CompletionStage<TerritoryRuleProfileDefinition> update(
             TerritoryRuleProfileDefinition current,
             RuleEffect effect,

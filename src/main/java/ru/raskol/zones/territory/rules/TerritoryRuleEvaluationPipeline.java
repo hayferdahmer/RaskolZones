@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import ru.raskol.zones.territory.TerritoryRepository;
 import ru.raskol.zones.territory.spatial.SpatialQueryResult;
 import ru.raskol.zones.territory.spatial.SpatialQueryService;
 
@@ -12,15 +13,18 @@ public final class TerritoryRuleEvaluationPipeline {
     private final SpatialQueryService spatialQueries;
     private final TerritoryRuleRepository rules;
     private final TerritoryRuleResolutionEngine resolver;
+    private final TerritoryRepository territories;
 
     public TerritoryRuleEvaluationPipeline(
             SpatialQueryService spatialQueries,
             TerritoryRuleRepository rules,
-            TerritoryRuleResolutionEngine resolver
+            TerritoryRuleResolutionEngine resolver,
+            TerritoryRepository territories
     ) {
         this.spatialQueries = Objects.requireNonNull(spatialQueries, "spatialQueries");
         this.rules = Objects.requireNonNull(rules, "rules");
         this.resolver = Objects.requireNonNull(resolver, "resolver");
+        this.territories = Objects.requireNonNull(territories, "territories");
     }
 
     public CompletionStage<RuleEvaluationResult> evaluate(
@@ -48,29 +52,31 @@ public final class TerritoryRuleEvaluationPipeline {
         List<String> territoryIds = spatial.territories().stream()
                 .map(territory -> territory.id().toString())
                 .toList();
-        return rules.findApplicable(territoryIds, normalizedAction).thenApply(definitions -> {
-            List<TerritoryRuleCandidate> candidates = definitions.stream()
-                    .map(rule -> spatial.territories().stream()
-                            .filter(territory -> territory.id().equals(rule.territoryId()))
-                            .findFirst()
-                            .map(territory -> new TerritoryRuleCandidate(
-                                    rule.ruleId(), territory, rule.effect(), rule.safetyClass(),
-                                    rule.specificity(), rule.sourceId()
-                            ))
-                            .orElse(null))
-                    .filter(Objects::nonNull)
-                    .toList();
+        return rules.findApplicable(territoryIds, normalizedAction).thenCompose(definitions ->
+                territories.listByWorld(worldId).thenApply(territorySnapshot -> {
+                    List<TerritoryRuleCandidate> candidates = definitions.stream()
+                            .map(rule -> spatial.territories().stream()
+                                    .filter(territory -> territory.id().equals(rule.territoryId()))
+                                    .findFirst()
+                                    .map(territory -> new TerritoryRuleCandidate(
+                                            rule.ruleId(), territory, rule.effect(), rule.safetyClass(),
+                                            rule.specificity(), rule.sourceId()
+                                    ))
+                                    .orElse(null))
+                            .filter(Objects::nonNull)
+                            .toList();
 
-            RuleResolutionResult result = resolver.resolve(worldId, candidates, spatial.territories());
-            RuleEvaluationStatus status = switch (result.status()) {
-                case RESOLVED -> RuleEvaluationStatus.RESOLVED;
-                case NO_CANDIDATES -> RuleEvaluationStatus.NO_APPLICABLE_RULE;
-                case INDETERMINATE -> RuleEvaluationStatus.INDETERMINATE;
-            };
-            return new RuleEvaluationResult(
-                    worldId, normalizedAction, spatial.snapshotVersion(), status,
-                    java.util.Optional.of(result)
-            );
-        });
+                    RuleResolutionResult result = resolver.resolve(worldId, candidates, territorySnapshot);
+                    RuleEvaluationStatus status = switch (result.status()) {
+                        case RESOLVED -> RuleEvaluationStatus.RESOLVED;
+                        case NO_CANDIDATES -> RuleEvaluationStatus.NO_APPLICABLE_RULE;
+                        case INDETERMINATE -> RuleEvaluationStatus.INDETERMINATE;
+                    };
+                    return new RuleEvaluationResult(
+                            worldId, normalizedAction, spatial.snapshotVersion(), status,
+                            java.util.Optional.of(result)
+                    );
+                })
+        );
     }
 }

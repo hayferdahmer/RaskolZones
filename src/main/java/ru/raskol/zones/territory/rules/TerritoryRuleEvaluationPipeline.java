@@ -62,7 +62,15 @@ public final class TerritoryRuleEvaluationPipeline {
         return territories.listByWorld(worldId).thenCompose(snapshot -> {
             Map<UUID, Territory> byId = new LinkedHashMap<>();
             snapshot.forEach(territory -> byId.put(territory.id(), territory));
-            Map<UUID, Territory> scope = resolvePolicyScope(worldId, spatial.territories(), byId);
+            Map<UUID, Territory> scope;
+            try {
+                scope = resolvePolicyScope(worldId, spatial.territories(), byId);
+            } catch (IllegalStateException invalidHierarchy) {
+                return CompletableFuture.completedFuture(new RuleEvaluationResult(
+                        worldId, normalizedAction, spatial.snapshotVersion(),
+                        RuleEvaluationStatus.INDETERMINATE, java.util.Optional.empty()
+                ));
+            }
             List<String> territoryIds = scope.values().stream()
                     .map(territory -> territory.id().toString())
                     .sorted()
@@ -134,6 +142,9 @@ public final class TerritoryRuleEvaluationPipeline {
         Map<UUID, Territory> scope = new LinkedHashMap<>();
         for (Territory spatialTerritory : spatialTerritories) {
             Territory current = snapshot.get(spatialTerritory.id());
+            if (current == null) {
+                throw new IllegalStateException("Территория отсутствует в снимке мира: " + spatialTerritory.id());
+            }
             Set<UUID> visited = new LinkedHashSet<>();
             while (current != null) {
                 if (!visited.add(current.id())) {

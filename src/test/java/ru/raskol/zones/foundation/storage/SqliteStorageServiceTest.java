@@ -63,7 +63,7 @@ class SqliteStorageServiceTest {
                     return result.getInt(1);
                 }
             }).toCompletableFuture().get();
-            assertEquals(5, version);
+            assertEquals(6, version);
 
             int tableCount = storage.transaction(connection -> {
                 try (var statement = connection.createStatement();

@@ -174,7 +174,7 @@ jobs:
               "docs/ROADMAP.md",
               "Paper 26.2",
               "Java 25",
-              "Статус: разработка — foundation, Territory Core, Spatial Query Engine, Territory Transition Engine и первая итерация Rule Resolution Engine",
+              "Статус: разработка — foundation, Territory Core, Spatial Query Engine, Territory Transition Engine, Rule Resolution Engine, Rule Registry / Evaluation Pipeline и первая итерация Rule Profiles / Inheritance Engine",
           ]
           missing = [item for item in required_readme if item not in readme]
           if missing:
@@ -236,6 +236,8 @@ jobs:
                 "ru/raskol/zones/territory/rules/SqliteTerritoryRuleRepository.class",
                 "ru/raskol/zones/territory/rules/TerritoryRuleEvaluationPipeline.class",
                   "ru/raskol/zones/territory/rules/TerritoryRuleResolutionEngine.class",
+                  "ru/raskol/zones/territory/rules/TerritoryRuleProfileRegistry.class",
+                  "ru/raskol/zones/territory/rules/SqliteTerritoryRuleProfileRepository.class",
                   "ru/raskol/zones/territory/rules/RuleResolutionResult.class",
                   "ru/raskol/zones/territory/rules/SourceAuthorityRegistry.class",
                   "org/sqlite/JDBC.class",
@@ -399,9 +401,11 @@ jobs:
                   ).fetchone()[0] if "world_registry" in tables else 0
               territory_tables = {"territories", "territory_geometry", "territory_vertices"}
               rule_tables = {"territory_rules"}
-              if version == 4 and "world_registry" in tables and territory_tables.issubset(tables) and rule_tables.issubset(tables) and count > 0:
+              profile_tables = {"territory_rule_profiles"}
+              if version == 5 and "world_registry" in tables and territory_tables.issubset(tables) and rule_tables.issubset(tables) and profile_tables.issubset(tables) and count > 0:
                   print(f"Territory schema verified: schema={version}, tables={sorted(territory_tables)}")
                   print(f"Rule registry schema verified: tables={sorted(rule_tables)}")
+                  print(f"Rule profile schema verified: tables={sorted(profile_tables)}")
                   print(f"World registry verified: schema={version}, loaded worlds={count}")
                   break
               if time.monotonic() >= deadline:

@@ -27,6 +27,6 @@ class RuleConditionCodecTest {
     @Test
     void rejectsUnknownCodecVersionAndUnknownCondition() {
         assertThrows(IllegalArgumentException.class, () -> RuleConditionCodec.decode("v9"));
-        assertThrows(IllegalArgumentException.class, () -> RuleConditionCodec.decode("v1\\nfuture:YWJj"));
+        assertThrows(IllegalArgumentException.class, () -> RuleConditionCodec.decode("v1\nfuture:YWJj"));
     }
 }

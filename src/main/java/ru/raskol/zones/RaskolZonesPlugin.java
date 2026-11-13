@@ -17,6 +17,11 @@ import ru.raskol.zones.territory.type.TerritoryTypeRegistry;
 import ru.raskol.zones.territory.spatial.SpatialQueryService;
 import ru.raskol.zones.territory.transition.TerritoryTransitionEngine;
 import ru.raskol.zones.territory.transition.TerritoryTransitionListener;
+import ru.raskol.zones.territory.rules.SourceAuthorityRegistry;
+import ru.raskol.zones.territory.rules.TerritoryRuleRegistry;
+import ru.raskol.zones.territory.rules.SqliteTerritoryRuleRepository;
+import ru.raskol.zones.territory.rules.TerritoryRuleEvaluationPipeline;
+import ru.raskol.zones.territory.rules.TerritoryRuleResolutionEngine;
 
 public final class RaskolZonesPlugin extends JavaPlugin {
 
@@ -26,6 +31,8 @@ public final class RaskolZonesPlugin extends JavaPlugin {
     private TerritoryService territoryService;
     private SpatialQueryService spatialQueryService;
     private TerritoryTransitionListener transitionListener;
+    private TerritoryRuleRegistry territoryRuleRegistry;
+    private TerritoryRuleEvaluationPipeline ruleEvaluationPipeline;
 
     @Override
     public void onEnable() {
@@ -34,7 +41,13 @@ public final class RaskolZonesPlugin extends JavaPlugin {
         storage = new SqliteStorageService(databasePath);
         worldRegistry = new WorldRegistryService(storage);
         var territoryRepository = new SqliteTerritoryRepository(storage);
+        var ruleRepository = new SqliteTerritoryRuleRepository(storage);
+        territoryRuleRegistry = new TerritoryRuleRegistry(ruleRepository);
         spatialQueryService = new SpatialQueryService(territoryRepository);
+        ruleEvaluationPipeline = new TerritoryRuleEvaluationPipeline(
+                spatialQueryService, ruleRepository,
+                new TerritoryRuleResolutionEngine(SourceAuthorityRegistry.coreOnly())
+        );
         var transitionEngine = new TerritoryTransitionEngine(spatialQueryService);
         transitionListener = new TerritoryTransitionListener(
                 transitionEngine,
@@ -109,6 +122,20 @@ public final class RaskolZonesPlugin extends JavaPlugin {
                 getLogger().info("RaskolZones готов. Состояние: " + health.snapshot().status());
             }
         });
+    }
+
+    public TerritoryRuleRegistry territoryRuleRegistry() {
+        if (territoryRuleRegistry == null) {
+            throw new IllegalStateException("Реестр правил ещё не инициализирован");
+        }
+        return territoryRuleRegistry;
+    }
+
+    public TerritoryRuleEvaluationPipeline ruleEvaluationPipeline() {
+        if (ruleEvaluationPipeline == null) {
+            throw new IllegalStateException("Конвейер правил ещё не инициализирован");
+        }
+        return ruleEvaluationPipeline;
     }
 
     @Override

@@ -22,6 +22,8 @@ import ru.raskol.zones.territory.rules.TerritoryRuleRegistry;
 import ru.raskol.zones.territory.rules.SqliteTerritoryRuleRepository;
 import ru.raskol.zones.territory.rules.TerritoryRuleEvaluationPipeline;
 import ru.raskol.zones.territory.rules.TerritoryRuleResolutionEngine;
+import ru.raskol.zones.territory.rules.TerritoryRuleProfileRegistry;
+import ru.raskol.zones.territory.rules.SqliteTerritoryRuleProfileRepository;
 
 public final class RaskolZonesPlugin extends JavaPlugin {
 
@@ -32,6 +34,7 @@ public final class RaskolZonesPlugin extends JavaPlugin {
     private SpatialQueryService spatialQueryService;
     private TerritoryTransitionListener transitionListener;
     private TerritoryRuleRegistry territoryRuleRegistry;
+    private TerritoryRuleProfileRegistry territoryRuleProfileRegistry;
     private TerritoryRuleEvaluationPipeline ruleEvaluationPipeline;
 
     @Override
@@ -43,9 +46,12 @@ public final class RaskolZonesPlugin extends JavaPlugin {
         var territoryRepository = new SqliteTerritoryRepository(storage);
         var ruleRepository = new SqliteTerritoryRuleRepository(storage);
         territoryRuleRegistry = new TerritoryRuleRegistry(ruleRepository);
+        var territoryTypes = TerritoryTypeRegistry.standard();
+        var profileRepository = new SqliteTerritoryRuleProfileRepository(storage);
+        territoryRuleProfileRegistry = new TerritoryRuleProfileRegistry(profileRepository, territoryTypes);
         spatialQueryService = new SpatialQueryService(territoryRepository);
         ruleEvaluationPipeline = new TerritoryRuleEvaluationPipeline(
-                spatialQueryService, ruleRepository,
+                spatialQueryService, ruleRepository, profileRepository,
                 new TerritoryRuleResolutionEngine(SourceAuthorityRegistry.coreOnly()),
                 territoryRepository
         );
@@ -59,7 +65,7 @@ public final class RaskolZonesPlugin extends JavaPlugin {
 
         territoryService = new TerritoryService(
                 territoryRepository,
-                TerritoryTypeRegistry.standard(),
+                territoryTypes,
                 spatialQueryService
         );
 
@@ -130,6 +136,13 @@ public final class RaskolZonesPlugin extends JavaPlugin {
             throw new IllegalStateException("Реестр правил ещё не инициализирован");
         }
         return territoryRuleRegistry;
+    }
+
+    public TerritoryRuleProfileRegistry territoryRuleProfileRegistry() {
+        if (territoryRuleProfileRegistry == null) {
+            throw new IllegalStateException("Реестр профилей правил ещё не инициализирован");
+        }
+        return territoryRuleProfileRegistry;
     }
 
     public TerritoryRuleEvaluationPipeline ruleEvaluationPipeline() {

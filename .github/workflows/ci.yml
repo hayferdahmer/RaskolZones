@@ -174,7 +174,7 @@ jobs:
               "docs/ROADMAP.md",
               "Paper 26.2",
               "Java 25",
-              "Статус: разработка — foundation, Territory Core, Spatial Query Engine и первая итерация Territory Transition Engine",
+              "Статус: разработка — foundation, Territory Core, Spatial Query Engine, Territory Transition Engine и первая итерация Rule Resolution Engine",
           ]
           missing = [item for item in required_readme if item not in readme]
           if missing:
@@ -232,6 +232,9 @@ jobs:
                   "ru/raskol/zones/territory/transition/TerritoryTransitionEngine.class",
                   "ru/raskol/zones/territory/transition/TerritoryTransitionListener.class",
                   "ru/raskol/zones/territory/transition/event/TerritoryTransitionEvent.class",
+                  "ru/raskol/zones/territory/rules/TerritoryRuleResolutionEngine.class",
+                  "ru/raskol/zones/territory/rules/RuleResolutionResult.class",
+                  "ru/raskol/zones/territory/rules/SourceAuthorityRegistry.class",
                   "org/sqlite/JDBC.class",
               }
               missing = sorted(required - names)

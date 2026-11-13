@@ -1,6 +1,6 @@
 # RaskolZones — техническое задание и архитектурные решения
 
-> Статус: реализация инженерного фундамента, Territory Core, Spatial Query Engine, Territory Transition Engine и первой итерации Rule Resolution Engine. Канонический журнал архитектурных решений содержит A-00–A-43; этот документ является синхронизируемой технической спецификацией.
+  > Статус: реализация инженерного фундамента, Territory Core, Spatial Query Engine, Territory Transition Engine, Rule Resolution Engine, Rule Registry / Evaluation Pipeline и первой итерации Rule Profiles / Inheritance Engine. Канонический журнал архитектурных решений содержит A-00–A-43; этот документ является синхронизируемой технической спецификацией.
 > Целевая платформа: Paper 26.2, Java 25.
 > Репозиторий: hayferdahmer/RaskolZones.
 > Этот документ фиксирует согласованные требования. Он не означает, что функциональность уже реализована.

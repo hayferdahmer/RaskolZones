@@ -232,6 +232,9 @@ jobs:
                   "ru/raskol/zones/territory/transition/TerritoryTransitionEngine.class",
                   "ru/raskol/zones/territory/transition/TerritoryTransitionListener.class",
                   "ru/raskol/zones/territory/transition/event/TerritoryTransitionEvent.class",
+                "ru/raskol/zones/territory/rules/TerritoryRuleRegistry.class",
+                "ru/raskol/zones/territory/rules/SqliteTerritoryRuleRepository.class",
+                "ru/raskol/zones/territory/rules/TerritoryRuleEvaluationPipeline.class",
                   "ru/raskol/zones/territory/rules/TerritoryRuleResolutionEngine.class",
                   "ru/raskol/zones/territory/rules/RuleResolutionResult.class",
                   "ru/raskol/zones/territory/rules/SourceAuthorityRegistry.class",
@@ -395,8 +398,10 @@ jobs:
                       "SELECT COUNT(*) FROM world_registry"
                   ).fetchone()[0] if "world_registry" in tables else 0
               territory_tables = {"territories", "territory_geometry", "territory_vertices"}
-              if version == 3 and "world_registry" in tables and territory_tables.issubset(tables) and count > 0:
+              rule_tables = {"territory_rules"}
+              if version == 4 and "world_registry" in tables and territory_tables.issubset(tables) and rule_tables.issubset(tables) and count > 0:
                   print(f"Territory schema verified: schema={version}, tables={sorted(territory_tables)}")
+                  print(f"Rule registry schema verified: tables={sorted(rule_tables)}")
                   print(f"World registry verified: schema={version}, loaded worlds={count}")
                   break
               if time.monotonic() >= deadline:

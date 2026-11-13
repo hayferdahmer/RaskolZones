@@ -98,7 +98,9 @@ public final class TerritoryRuleResolutionEngine {
     private static Map<UUID, Territory> territoryMap(Collection<Territory> snapshot) {
         Map<UUID, Territory> result = new LinkedHashMap<>();
         for (Territory territory : snapshot) {
-            Objects.requireNonNull(territory, "territorySnapshot contains null");
+            if (territory == null) {
+                throw new ResolutionValidationException(RuleDecisionReason.INVALID_HIERARCHY);
+            }
             if (result.putIfAbsent(territory.id(), territory) != null) {
                 throw new ResolutionValidationException(RuleDecisionReason.INVALID_HIERARCHY);
             }
@@ -112,7 +114,9 @@ public final class TerritoryRuleResolutionEngine {
             Map<UUID, Territory> territories
     ) {
         for (TerritoryRuleCandidate candidate : candidates) {
-            Objects.requireNonNull(candidate, "candidates contains null");
+            if (candidate == null) {
+                throw new ResolutionValidationException(RuleDecisionReason.INVALID_HIERARCHY);
+            }
             if (!candidate.territory().worldId().equals(worldId)) {
                 throw new ResolutionValidationException(RuleDecisionReason.WORLD_MISMATCH);
             }
